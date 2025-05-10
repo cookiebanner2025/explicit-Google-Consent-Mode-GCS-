@@ -1284,55 +1284,39 @@ let bannerShown = false;
 
 // Location data storage
 // Location data storage with immediate initialization
-let locationData = {
-    continent: 'Unknown',
-    country: 'Unknown',
-    city: 'Unknown',
-    zip: 'Unknown',
-    ip: 'Unknown',
-    street: 'Unknown',
-    region: 'Unknown',
-    timezone: 'Unknown',
-    isp: 'Unknown',
-    language: (navigator.language || "Unknown").split("-")[0]
-};
+// Location data storage - start empty
+let locationData = {};
 
-// Initialize dataLayer with location data immediately
-window.dataLayer = window.dataLayer || [];
-window.dataLayer.push({
-    'event': 'locationInitialized',
-    'location_data': locationData,
-    'timestamp': new Date().toISOString()
-});
-
-// Try to load from session storage if available
+// First try to load from session storage if available
 const savedLocation = sessionStorage.getItem('locationData');
 if (savedLocation) {
     locationData = JSON.parse(savedLocation);
-    window.dataLayer.push({
-        'event': 'locationLoadedFromCache',
-        'location_data': locationData,
-        'timestamp': new Date().toISOString()
+} else {
+    // If no saved data, fetch fresh data
+    fetchLocationData().then(() => {
+        // Push to dataLayer after we have the data
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({
+            'event': 'locationInitialized',
+            'location_data': locationData,
+            'timestamp': new Date().toISOString()
+        });
     });
 }
-
 // Function to fetch location data
 async function fetchLocationData() {
-    // Skip if we already have valid location data
-    if (locationData.country !== 'Unknown' && locationData.country !== '') {
-        return;
+    // Skip if we already have valid location data (optional safety check)
+    if (locationData.country && locationData.country !== 'Unknown') {
+        return locationData;
     }
 
-    var apiKey = '4c1e5d00e0ac93'; // Your API key
-    
     try {
-        const response = await fetch('https://ipinfo.io/json?token=' + apiKey);
-        if (!response.ok) {
-            throw new Error('Failed to fetch location data');
-        }
+        const response = await fetch('https://ipinfo.io/json?token=4c1e5d00e0ac93');
+        if (!response.ok) throw new Error('Failed to fetch location');
+        
         const payload = await response.json();
-
-        // Update locationData
+        
+        // Update locationData with actual values
         locationData = {
             continent: getContinentFromCountry(payload.country) || "Unknown",
             country: payload.country || "Unknown",
@@ -1348,16 +1332,32 @@ async function fetchLocationData() {
 
         // Save to session storage
         sessionStorage.setItem('locationData', JSON.stringify(locationData));
-
-        // Push to dataLayer
+        
+        // Push to dataLayer - THIS IS WHERE IT HAPPENS NOW
         window.dataLayer.push({
             'event': 'locationRetrieved',
             'location_data': locationData,
             'timestamp': new Date().toISOString()
         });
-
+        
+        return locationData;
+        
     } catch (error) {
         console.error('Error fetching location:', error);
+        // Set defaults if API fails
+        locationData = {
+            continent: "Unknown",
+            country: "Unknown",
+            city: "Unknown",
+            zip: "Unknown",
+            ip: "Unknown",
+            street: "Unknown",
+            region: "Unknown",
+            timezone: "Unknown",
+            isp: "Unknown",
+            language: (navigator.language || "Unknown").split("-")[0]
+        };
+        return locationData;
     }
 }
 
@@ -3621,8 +3621,11 @@ function loadPerformanceCookies() {
 
 // Main execution flow
 document.addEventListener('DOMContentLoaded', async function() {
-       // Add this line first:
-    fetchLocationData(); // Start loading location data immediately
+      // Ensure location data is loaded first
+    if (!sessionStorage.getItem('locationData')) {
+        await fetchLocationData();
+    }  
+   
 
  // Check if domain is allowed
     if (!isDomainAllowed()) {
