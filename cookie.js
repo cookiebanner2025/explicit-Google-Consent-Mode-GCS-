@@ -1,6 +1,6 @@
 const config = {
     // Domain restriction
-    allowedDomains: ['dev-rpractice.pantheonsite.io', 'my-complete-health.com'],
+    allowedDomains: ['dev-rpractice.pantheonsite.io', 'assistenzaelettrodomestici-firenze.com'],
     
     // Privacy policy URL (configurable)
     privacyPolicyUrl: 'https://yourdomain.com/privacy-policy', // Add your full privacy policy URL here
@@ -22,7 +22,7 @@ const config = {
         acceptOnScroll: false,
         acceptOnContinue: false,
         showFloatingButton: true,
-        showAdminButton: false,
+        showAdminButton: true,
         floatingButtonPosition: 'left',
         adminButtonPosition: 'left',
         bannerPosition: 'left',
@@ -62,7 +62,7 @@ const config = {
     languageConfig: {
         defaultLanguage: 'en',
         availableLanguages: [], // Only en and fr as requested
-        showLanguageSelector: false,
+        showLanguageSelector: true,
         autoDetectLanguage: true
     },
     
@@ -1284,6 +1284,7 @@ let bannerShown = false;
 
 // Location data storage
 // Location data storage with immediate initialization
+// Location data storage with immediate initialization
 let locationData = {
     continent: 'Unknown',
     country: 'Unknown',
@@ -1304,6 +1305,17 @@ window.dataLayer.push({
     'location_data': locationData,
     'timestamp': new Date().toISOString()
 });
+
+// Try to load from session storage if available
+const savedLocation = sessionStorage.getItem('locationData');
+if (savedLocation) {
+    locationData = JSON.parse(savedLocation);
+    window.dataLayer.push({
+        'event': 'locationLoadedFromCache',
+        'location_data': locationData,
+        'timestamp': new Date().toISOString()
+    });
+}
 
 // Try to load from session storage if available
 const savedLocation = sessionStorage.getItem('locationData');
