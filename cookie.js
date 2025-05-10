@@ -3458,17 +3458,56 @@ function saveCustomSettings() {
         'security_storage': 'granted'
     };
     
- window.dataLayer.push({
-    'event': 'cookie_consent_custom',
-    'consent_mode': consentStates,
-    'gcs': gcsSignal,
-    'consent_status': 'custom',
-    'consent_categories': consentData.categories,
-    'timestamp': new Date().toISOString(),
-    'location_data': locationData
-});
+    window.dataLayer.push({
+        'event': 'cookie_consent_update',
+        'consent_mode': consentStates,
+        'gcs': gcsSignal,
+        'consent_status': 'custom',
+        'consent_categories': consentData.categories,
+        'timestamp': new Date().toISOString(),
+        'location_data': locationData
+    });
+    
+    // NEW: Fire specific events when only analytics or marketing cookies are accepted
+    if (analyticsChecked && !advertisingChecked) {
+        window.dataLayer.push({
+            'event': 'analytics_cookie_accepted',
+            'consent_mode': {
+                'analytics_storage': 'granted',
+                'ad_storage': 'denied'
+            },
+            'gcs': 'G101',
+            'timestamp': new Date().toISOString(),
+            'location_data': locationData
+        });
+    }
+    
+    if (advertisingChecked && !analyticsChecked) {
+        window.dataLayer.push({
+            'event': 'marketing_cookie_accepted',
+            'consent_mode': {
+                'ad_storage': 'granted',
+                'analytics_storage': 'denied'
+            },
+            'gcs': 'G110',
+            'timestamp': new Date().toISOString(),
+            'location_data': locationData
+        });
+    }
+    
+    // Keep the existing custom event for all other cases
+    if ((analyticsChecked && advertisingChecked) || (!analyticsChecked && !advertisingChecked)) {
+        window.dataLayer.push({
+            'event': 'cookie_consent_custom',
+            'consent_mode': consentStates,
+            'gcs': gcsSignal,
+            'consent_status': 'custom',
+            'consent_categories': consentData.categories,
+            'timestamp': new Date().toISOString(),
+            'location_data': locationData
+        });
+    }
 }
-
 // Helper functions
 function clearNonEssentialCookies() {
     const cookies = document.cookie.split(';');
