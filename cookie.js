@@ -3344,25 +3344,41 @@ function acceptAllCookies() {
     }
     
     // Push dataLayer event for consent acceptance with location data
-window.dataLayer.push({
-    'event': 'cookie_consent_accepted',
-    'consent_mode': {
-        'ad_storage': 'granted',
-        'analytics_storage': 'granted',
-        'ad_user_data': 'granted',
-        'ad_personalization': 'granted',
-        'personalization_storage': 'granted',
-        'functionality_storage': 'granted',
-        'security_storage': 'granted'
-    },
-    'gcs': 'G111',
-    'consent_status': 'accepted',
-    'consent_categories': consentData.categories,
-    'timestamp': new Date().toISOString(),
-    'location_data': locationData
-});
-}
+    window.dataLayer.push({
+        'event': 'cookie_consent_accepted',
+        'consent_mode': {
+            'ad_storage': 'granted',
+            'analytics_storage': 'granted',
+            'ad_user_data': 'granted',
+            'ad_personalization': 'granted',
+            'personalization_storage': 'granted',
+            'functionality_storage': 'granted',
+            'security_storage': 'granted'
+        },
+        'gcs': 'G111',
+        'consent_status': 'accepted',
+        'consent_categories': consentData.categories,
+        'timestamp': new Date().toISOString(),
+        'location_data': locationData
+    });
 
+    // Fire specific cookie acceptance events after the main consent update
+    setTimeout(() => {
+        window.dataLayer.push({
+            'event': 'analytics_cookie_accepted',
+            'gcs': 'G111',
+            'timestamp': new Date().toISOString(),
+            'location_data': locationData
+        });
+        
+        window.dataLayer.push({
+            'event': 'marketing_cookie_accepted',
+            'gcs': 'G111',
+            'timestamp': new Date().toISOString(),
+            'location_data': locationData
+        });
+    }, 100);
+}
 function rejectAllCookies() {
     const consentData = {
         status: 'rejected',
@@ -3409,22 +3425,86 @@ function saveCustomSettings() {
     const analyticsChecked = document.querySelector('input[data-category="analytics"]').checked;
     const advertisingChecked = document.querySelector('input[data-category="advertising"]').checked;
     
-    // Fire events when specific categories are accepted
-    if (analyticsChecked) {
-        window.dataLayer.push({
-            'event': 'analytics_cookie_accepted',
-            'timestamp': new Date().toISOString(),
-            'location_data': locationData
-        });
+    let gcsSignal;
+    if (analyticsChecked && advertisingChecked) {
+        gcsSignal = 'G111';
+    } else if (!analyticsChecked && !advertisingChecked) {
+        gcsSignal = 'G100';
+    } else if (analyticsChecked && !advertisingChecked) {
+        gcsSignal = 'G101';
+    } else if (!analyticsChecked && advertisingChecked) {
+        gcsSignal = 'G110';
+    }
+
+    const consentData = {
+        status: 'custom',
+        gcs: gcsSignal,
+        categories: {
+            functional: true,
+            analytics: analyticsChecked,
+            performance: document.querySelector('input[data-category="performance"]').checked,
+            advertising: advertisingChecked,
+            uncategorized: document.querySelector('input[data-category="uncategorized"]') ? 
+                document.querySelector('input[data-category="uncategorized"]').checked : false
+        },
+        timestamp: new Date().getTime()
+    };
+    
+    setCookie('cookie_consent', JSON.stringify(consentData), 365);
+    updateConsentMode(consentData);
+    loadCookiesAccordingToConsent(consentData);
+    
+    if (!consentData.categories.analytics) clearCategoryCookies('analytics');
+    if (!consentData.categories.performance) clearCategoryCookies('performance');
+    if (!consentData.categories.advertising) clearCategoryCookies('advertising');
+    if (!consentData.categories.uncategorized) clearCategoryCookies('uncategorized');
+    
+    if (config.analytics.enabled) {
+        updateConsentStats('custom');
     }
     
-    if (advertisingChecked) {
-        window.dataLayer.push({
-            'event': 'marketing_cookie_accepted',
-            'timestamp': new Date().toISOString(),
-            'location_data': locationData
-        });
-    }
+    // Push dataLayer event for custom consent settings with location data
+    const consentStates = {
+        'ad_storage': consentData.categories.advertising ? 'granted' : 'denied',
+        'analytics_storage': consentData.categories.analytics ? 'granted' : 'denied',
+        'ad_user_data': consentData.categories.advertising ? 'granted' : 'denied',
+        'ad_personalization': consentData.categories.advertising ? 'granted' : 'denied',
+        'personalization_storage': consentData.categories.performance ? 'granted' : 'denied',
+        'functionality_storage': consentData.categories.functional ? 'granted' : 'denied',
+        'security_storage': 'granted'
+    };
+    
+    window.dataLayer.push({
+        'event': 'cookie_consent_custom',
+        'consent_mode': consentStates,
+        'gcs': gcsSignal,
+        'consent_status': 'custom',
+        'consent_categories': consentData.categories,
+        'timestamp': new Date().toISOString(),
+        'location_data': locationData
+    });
+
+    // Fire specific cookie acceptance events after the main consent update
+    setTimeout(() => {
+        if (analyticsChecked) {
+            window.dataLayer.push({
+                'event': 'analytics_cookie_accepted',
+                'gcs': gcsSignal,
+                'timestamp': new Date().toISOString(),
+                'location_data': locationData
+            });
+        }
+        
+        if (advertisingChecked) {
+            window.dataLayer.push({
+                'event': 'marketing_cookie_accepted',
+                'gcs': gcsSignal,
+                'timestamp': new Date().toISOString(),
+                'location_data': locationData
+            });
+        }
+    }, 100);
+}
 
     // Rest of the existing function remains the same...
     let gcsSignal;
