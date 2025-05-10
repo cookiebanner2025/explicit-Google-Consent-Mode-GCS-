@@ -3336,14 +3336,17 @@ function acceptAllCookies() {
     };
     
     setCookie('cookie_consent', JSON.stringify(consentData), 365);
-    updateConsentMode(consentData);
+    
+    // Update consent mode without pushing events
+    updateConsentMode(consentData, false);
+    
     loadCookiesAccordingToConsent(consentData);
     
     if (config.analytics.enabled) {
         updateConsentStats('accepted');
     }
     
-    // Push dataLayer event for consent acceptance with location data
+    // Push the main cookie_consent_accepted event
     window.dataLayer.push({
         'event': 'cookie_consent_accepted',
         'consent_mode': {
@@ -3362,7 +3365,7 @@ function acceptAllCookies() {
         'location_data': locationData
     });
 
-    // NEW: Also fire the specific cookie acceptance events when accepting all
+    // Then push specific acceptance events
     window.dataLayer.push({
         'event': 'analytics_cookie_accepted',
         'consent_mode': {
@@ -3383,6 +3386,7 @@ function acceptAllCookies() {
         'location_data': locationData
     });
 }
+
 function rejectAllCookies() {
     const consentData = {
         status: 'rejected',
@@ -3455,7 +3459,10 @@ function saveCustomSettings() {
     };
     
     setCookie('cookie_consent', JSON.stringify(consentData), 365);
-    updateConsentMode(consentData);
+    
+    // First update consent mode without pushing events
+    updateConsentMode(consentData, false);
+    
     loadCookiesAccordingToConsent(consentData);
     
     if (!consentData.categories.analytics) clearCategoryCookies('analytics');
@@ -3467,7 +3474,7 @@ function saveCustomSettings() {
         updateConsentStats('custom');
     }
     
-    // Push dataLayer event for custom consent settings with location data
+    // Push the main cookie_consent_update event
     const consentStates = {
         'ad_storage': consentData.categories.advertising ? 'granted' : 'denied',
         'analytics_storage': consentData.categories.analytics ? 'granted' : 'denied',
@@ -3488,7 +3495,7 @@ function saveCustomSettings() {
         'location_data': locationData
     });
 
-    // NEW: Fire additional events when specific cookie categories are accepted
+    // Then push specific events for each accepted category
     if (consentData.categories.analytics) {
         window.dataLayer.push({
             'event': 'analytics_cookie_accepted',
@@ -3556,7 +3563,8 @@ function loadCookiesAccordingToConsent(consentData) {
 }
 
 // Update consent mode for both Google and Microsoft UET
-function updateConsentMode(consentData) {
+// Update consent mode for both Google and Microsoft UET
+function updateConsentMode(consentData, pushEvent = true) {
     const consentStates = {
         'ad_storage': consentData.categories.advertising ? 'granted' : 'denied',
         'analytics_storage': consentData.categories.analytics ? 'granted' : 'denied',
@@ -3594,30 +3602,33 @@ function updateConsentMode(consentData) {
             'ad_storage': uetConsentState
         });
         
-        // Push UET consent event to dataLayer with the exact requested format
-      window.dataLayer.push({
-    'event': 'uet_consent_update',
-    'uet_consent': {
-        'ad_storage': uetConsentState,
-        'status': consentData.status,
-        'src': 'update',
-        'asc': uetConsentState === 'granted' ? 'G' : 'D',
-        'timestamp': new Date().toISOString()
-    },
-    'location_data': locationData
-});
+        if (pushEvent) {
+            window.dataLayer.push({
+                'event': 'uet_consent_update',
+                'uet_consent': {
+                    'ad_storage': uetConsentState,
+                    'status': consentData.status,
+                    'src': 'update',
+                    'asc': uetConsentState === 'granted' ? 'G' : 'D',
+                    'timestamp': new Date().toISOString()
+                },
+                'location_data': locationData
+            });
+        }
     }
     
-    // Push general consent update to dataLayer
- window.dataLayer.push({
-    'event': 'cookie_consent_update',
-    'consent_mode': consentStates,
-    'gcs': gcsSignal,
-    'consent_status': consentData.status,
-    'consent_categories': consentData.categories,
-    'timestamp': new Date().toISOString(),
-    'location_data': locationData
-});
+    // Push general consent update to dataLayer only if requested
+    if (pushEvent) {
+        window.dataLayer.push({
+            'event': 'cookie_consent_update',
+            'consent_mode': consentStates,
+            'gcs': gcsSignal,
+            'consent_status': consentData.status,
+            'consent_categories': consentData.categories,
+            'timestamp': new Date().toISOString(),
+            'location_data': locationData
+        });
+    }
 }
 
 // Cookie management functions
