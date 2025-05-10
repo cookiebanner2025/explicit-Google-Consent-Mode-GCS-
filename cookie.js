@@ -3409,6 +3409,24 @@ function saveCustomSettings() {
     const analyticsChecked = document.querySelector('input[data-category="analytics"]').checked;
     const advertisingChecked = document.querySelector('input[data-category="advertising"]').checked;
     
+    // Fire events when specific categories are accepted
+    if (analyticsChecked) {
+        window.dataLayer.push({
+            'event': 'analytics_cookie_accepted',
+            'timestamp': new Date().toISOString(),
+            'location_data': locationData
+        });
+    }
+    
+    if (advertisingChecked) {
+        window.dataLayer.push({
+            'event': 'marketing_cookie_accepted',
+            'timestamp': new Date().toISOString(),
+            'location_data': locationData
+        });
+    }
+
+    // Rest of the existing function remains the same...
     let gcsSignal;
     if (analyticsChecked && advertisingChecked) {
         gcsSignal = 'G111';
@@ -3433,7 +3451,6 @@ function saveCustomSettings() {
         },
         timestamp: new Date().getTime()
     };
-    
     setCookie('cookie_consent', JSON.stringify(consentData), 365);
     updateConsentMode(consentData);
     loadCookiesAccordingToConsent(consentData);
