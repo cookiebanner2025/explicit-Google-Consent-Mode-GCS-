@@ -3344,41 +3344,25 @@ function acceptAllCookies() {
     }
     
     // Push dataLayer event for consent acceptance with location data
-    window.dataLayer.push({
-        'event': 'cookie_consent_accepted',
-        'consent_mode': {
-            'ad_storage': 'granted',
-            'analytics_storage': 'granted',
-            'ad_user_data': 'granted',
-            'ad_personalization': 'granted',
-            'personalization_storage': 'granted',
-            'functionality_storage': 'granted',
-            'security_storage': 'granted'
-        },
-        'gcs': 'G111',
-        'consent_status': 'accepted',
-        'consent_categories': consentData.categories,
-        'timestamp': new Date().toISOString(),
-        'location_data': locationData
-    });
-
-    // Fire specific cookie acceptance events after the main consent update
-    setTimeout(() => {
-        window.dataLayer.push({
-            'event': 'analytics_cookie_accepted',
-            'gcs': 'G111',
-            'timestamp': new Date().toISOString(),
-            'location_data': locationData
-        });
-        
-        window.dataLayer.push({
-            'event': 'marketing_cookie_accepted',
-            'gcs': 'G111',
-            'timestamp': new Date().toISOString(),
-            'location_data': locationData
-        });
-    }, 100);
+window.dataLayer.push({
+    'event': 'cookie_consent_accepted',
+    'consent_mode': {
+        'ad_storage': 'granted',
+        'analytics_storage': 'granted',
+        'ad_user_data': 'granted',
+        'ad_personalization': 'granted',
+        'personalization_storage': 'granted',
+        'functionality_storage': 'granted',
+        'security_storage': 'granted'
+    },
+    'gcs': 'G111',
+    'consent_status': 'accepted',
+    'consent_categories': consentData.categories,
+    'timestamp': new Date().toISOString(),
+    'location_data': locationData
+});
 }
+
 function rejectAllCookies() {
     const consentData = {
         status: 'rejected',
@@ -3484,65 +3468,25 @@ function saveCustomSettings() {
         'location_data': locationData
     });
 
-    // Fire specific cookie acceptance events after the main consent update
-    setTimeout(() => {
-        if (analyticsChecked) {
-            window.dataLayer.push({
-                'event': 'analytics_cookie_accepted',
-                'gcs': gcsSignal,
-                'timestamp': new Date().toISOString(),
-                'location_data': locationData
-            });
-        }
-        
-        if (advertisingChecked) {
-            window.dataLayer.push({
-                'event': 'marketing_cookie_accepted',
-                'gcs': gcsSignal,
-                'timestamp': new Date().toISOString(),
-                'location_data': locationData
-            });
-        }
-    }, 100);
+    // Fire specific category events AFTER the main consent update
+    if (analyticsChecked) {
+        window.dataLayer.push({
+            'event': 'analytics_cookie_accepted',
+            'gcs': gcsSignal,
+            'timestamp': new Date().toISOString(),
+            'location_data': locationData
+        });
+    }
+    
+    if (advertisingChecked) {
+        window.dataLayer.push({
+            'event': 'marketing_cookie_accepted',
+            'gcs': gcsSignal,
+            'timestamp': new Date().toISOString(),
+            'location_data': locationData
+        });
+    }
 }
-
-    // Rest of the existing function remains the same...
-    let gcsSignal;
-    if (analyticsChecked && advertisingChecked) {
-        gcsSignal = 'G111';
-    } else if (!analyticsChecked && !advertisingChecked) {
-        gcsSignal = 'G100';
-    } else if (analyticsChecked && !advertisingChecked) {
-        gcsSignal = 'G101';
-    } else if (!analyticsChecked && advertisingChecked) {
-        gcsSignal = 'G110';
-    }
-
-    const consentData = {
-        status: 'custom',
-        gcs: gcsSignal,
-        categories: {
-            functional: true,
-            analytics: analyticsChecked,
-            performance: document.querySelector('input[data-category="performance"]').checked,
-            advertising: advertisingChecked,
-            uncategorized: document.querySelector('input[data-category="uncategorized"]') ? 
-                document.querySelector('input[data-category="uncategorized"]').checked : false
-        },
-        timestamp: new Date().getTime()
-    };
-    setCookie('cookie_consent', JSON.stringify(consentData), 365);
-    updateConsentMode(consentData);
-    loadCookiesAccordingToConsent(consentData);
-    
-    if (!consentData.categories.analytics) clearCategoryCookies('analytics');
-    if (!consentData.categories.performance) clearCategoryCookies('performance');
-    if (!consentData.categories.advertising) clearCategoryCookies('advertising');
-    if (!consentData.categories.uncategorized) clearCategoryCookies('uncategorized');
-    
-    if (config.analytics.enabled) {
-        updateConsentStats('custom');
-    }
     
     // Push dataLayer event for custom consent settings with location data
     const consentStates = {
@@ -3803,3 +3747,4 @@ if (typeof window !== 'undefined') {
         config: config
     };
 }
+
