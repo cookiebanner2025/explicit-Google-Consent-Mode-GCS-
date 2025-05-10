@@ -1,6 +1,6 @@
 const config = {
     // Domain restriction
-    allowedDomains: ['dev-rpractice.pantheonsite.io', 'assistenzaelettrodomestici-firenze.com'],
+    allowedDomains: ['dev-rpractice.pantheonsite.io', 'my-complete-health.com'],
     
     // Privacy policy URL (configurable)
     privacyPolicyUrl: 'https://yourdomain.com/privacy-policy', // Add your full privacy policy URL here
@@ -22,7 +22,7 @@ const config = {
         acceptOnScroll: false,
         acceptOnContinue: false,
         showFloatingButton: true,
-        showAdminButton: true,
+        showAdminButton: false,
         floatingButtonPosition: 'left',
         adminButtonPosition: 'left',
         bannerPosition: 'left',
@@ -62,7 +62,7 @@ const config = {
     languageConfig: {
         defaultLanguage: 'en',
         availableLanguages: [], // Only en and fr as requested
-        showLanguageSelector: true,
+        showLanguageSelector: false,
         autoDetectLanguage: true
     },
     
@@ -1283,44 +1283,43 @@ let bannerTimer = null;
 let bannerShown = false;
 
 // Location data storage
-// Location data storage - initialize with just the language
+// Location data storage with immediate initialization
 let locationData = {
+    continent: 'Unknown',
+    country: 'Unknown',
+    city: 'Unknown',
+    zip: 'Unknown',
+    ip: 'Unknown',
+    street: 'Unknown',
+    region: 'Unknown',
+    timezone: 'Unknown',
+    isp: 'Unknown',
     language: (navigator.language || "Unknown").split("-")[0]
 };
 
-// Initialize dataLayer immediately with just the language
+// Initialize dataLayer with location data immediately
 window.dataLayer = window.dataLayer || [];
 window.dataLayer.push({
     'event': 'locationInitialized',
-    'location_data': { language: locationData.language },
+    'location_data': locationData,
     'timestamp': new Date().toISOString()
 });
 
-// Function to update location data and push to dataLayer
-function updateLocationData(newData) {
-    locationData = {
-        ...locationData,
-        ...newData,
-        continent: getContinentFromCountry(newData.country) || "Unknown"
-    };
-    
-    // Save to session storage
-    sessionStorage.setItem('locationData', JSON.stringify(locationData));
-    
-    // Push update to dataLayer
+// Try to load from session storage if available
+const savedLocation = sessionStorage.getItem('locationData');
+if (savedLocation) {
+    locationData = JSON.parse(savedLocation);
     window.dataLayer.push({
-        'event': 'locationUpdated',
+        'event': 'locationLoadedFromCache',
         'location_data': locationData,
         'timestamp': new Date().toISOString()
     });
 }
 
-// Modified fetchLocationData function
+// Function to fetch location data
 async function fetchLocationData() {
-    // Try to load from session storage first
-    const savedLocation = sessionStorage.getItem('locationData');
-    if (savedLocation) {
-        updateLocationData(JSON.parse(savedLocation));
+    // Skip if we already have valid location data
+    if (locationData.country !== 'Unknown' && locationData.country !== '') {
         return;
     }
 
@@ -1328,10 +1327,14 @@ async function fetchLocationData() {
     
     try {
         const response = await fetch('https://ipinfo.io/json?token=' + apiKey);
-        if (!response.ok) throw new Error('Failed to fetch location data');
-        
+        if (!response.ok) {
+            throw new Error('Failed to fetch location data');
+        }
         const payload = await response.json();
-        updateLocationData({
+
+        // Update locationData
+        locationData = {
+            continent: getContinentFromCountry(payload.country) || "Unknown",
             country: payload.country || "Unknown",
             city: payload.city || "Unknown",
             zip: payload.postal || "Unknown",
@@ -1339,28 +1342,9 @@ async function fetchLocationData() {
             street: payload.loc || "Unknown",
             region: payload.region || "Unknown",
             timezone: payload.timezone || "Unknown",
-            isp: payload.org || "Unknown"
-        });
-
-    } catch (error) {
-        console.error('Error fetching location:', error);
-        // Update with "Unknown" for all fields except language
-        updateLocationData({
-            continent: "Unknown",
-            country: "Unknown",
-            city: "Unknown",
-            zip: "Unknown",
-            ip: "Unknown",
-            street: "Unknown",
-            region: "Unknown",
-            timezone: "Unknown",
-            isp: "Unknown"
-        });
-    }
-}
-
-// Call fetchLocationData immediately when the script loads
-fetchLocationData();
+            isp: payload.org || "Unknown",
+            language: (navigator.language || "Unknown").split("-")[0]
+        };
 
         // Save to session storage
         sessionStorage.setItem('locationData', JSON.stringify(locationData));
