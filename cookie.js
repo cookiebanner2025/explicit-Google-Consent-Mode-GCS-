@@ -1284,7 +1284,6 @@ let bannerShown = false;
 
 // Location data storage
 // Location data storage with immediate initialization
-// Location data storage with immediate initialization
 let locationData = {
     continent: 'Unknown',
     country: 'Unknown',
@@ -1305,17 +1304,6 @@ window.dataLayer.push({
     'location_data': locationData,
     'timestamp': new Date().toISOString()
 });
-
-// Try to load from session storage if available
-const savedLocation = sessionStorage.getItem('locationData');
-if (savedLocation) {
-    locationData = JSON.parse(savedLocation);
-    window.dataLayer.push({
-        'event': 'locationLoadedFromCache',
-        'location_data': locationData,
-        'timestamp': new Date().toISOString()
-    });
-}
 
 // Try to load from session storage if available
 const savedLocation = sessionStorage.getItem('locationData');
