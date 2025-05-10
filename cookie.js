@@ -3447,7 +3447,6 @@ function saveCustomSettings() {
         updateConsentStats('custom');
     }
     
-    // Push dataLayer event for custom consent settings with location data
     const consentStates = {
         'ad_storage': consentData.categories.advertising ? 'granted' : 'denied',
         'analytics_storage': consentData.categories.analytics ? 'granted' : 'denied',
@@ -3458,17 +3457,7 @@ function saveCustomSettings() {
         'security_storage': 'granted'
     };
     
-    window.dataLayer.push({
-        'event': 'cookie_consent_update',
-        'consent_mode': consentStates,
-        'gcs': gcsSignal,
-        'consent_status': 'custom',
-        'consent_categories': consentData.categories,
-        'timestamp': new Date().toISOString(),
-        'location_data': locationData
-    });
-    
-    // NEW: Fire specific events when only analytics or marketing cookies are accepted
+    // Fire specific events based on consent choices
     if (analyticsChecked && !advertisingChecked) {
         window.dataLayer.push({
             'event': 'analytics_cookie_accepted',
@@ -3477,12 +3466,12 @@ function saveCustomSettings() {
                 'ad_storage': 'denied'
             },
             'gcs': 'G101',
+            'consent_status': 'custom',
+            'consent_categories': consentData.categories,
             'timestamp': new Date().toISOString(),
             'location_data': locationData
         });
-    }
-    
-    if (advertisingChecked && !analyticsChecked) {
+    } else if (advertisingChecked && !analyticsChecked) {
         window.dataLayer.push({
             'event': 'marketing_cookie_accepted',
             'consent_mode': {
@@ -3490,13 +3479,13 @@ function saveCustomSettings() {
                 'analytics_storage': 'denied'
             },
             'gcs': 'G110',
+            'consent_status': 'custom',
+            'consent_categories': consentData.categories,
             'timestamp': new Date().toISOString(),
             'location_data': locationData
         });
-    }
-    
-    // Keep the existing custom event for all other cases
-    if ((analyticsChecked && advertisingChecked) || (!analyticsChecked && !advertisingChecked)) {
+    } else {
+        // For all other cases (both accepted or both rejected)
         window.dataLayer.push({
             'event': 'cookie_consent_custom',
             'consent_mode': consentStates,
