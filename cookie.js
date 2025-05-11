@@ -3571,7 +3571,7 @@ function updateConsentMode(consentData) {
     // Update Google consent with explicit GCS parameter
     gtag('consent', 'update', {
         ...consentStates,
-      
+      'gcs': gcsSignal // Add this line
     });
     
     // Update Microsoft UET consent if enabled
