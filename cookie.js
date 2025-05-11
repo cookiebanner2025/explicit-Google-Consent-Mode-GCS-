@@ -6,14 +6,15 @@ const config = {
     privacyPolicyUrl: 'https://yourdomain.com/privacy-policy', // Add your full privacy policy URL here
     
     // Microsoft UET Configuration
+    // Microsoft UET Configuration
     uetConfig: {
         enabled: true,
         defaultTagId: '137027166', // Fallback if auto-detection fails
         autoDetectTagId: true,     // Try to detect UET tag ID automatically
         defaultConsent: 'denied',  // 'denied' or 'granted'
-        enforceInEEA: true         // Enforce consent mode in EEA countries
+        enforceInEEA: true,        // Enforce consent mode in EEA countries
+        msd: 'yourdomain.com'     // Add this line - your Microsoft domain
     },
-    
     // Behavior configuration
     behavior: {
         autoShow: true,
@@ -334,12 +335,15 @@ window.dataLayer.push({
 // Set default UET consent
 function setDefaultUetConsent() {
     if (!config.uetConfig.enabled) return;
+    
     // Redundant safeguard
     if (typeof window.uetq === 'undefined') window.uetq = [];
     const consentState = config.uetConfig.defaultConsent === 'granted' ? 'granted' : 'denied';
     
+    // Add msd parameter here
     window.uetq.push('consent', 'default', {
-        'ad_storage': consentState
+        'ad_storage': consentState,
+        'msd': config.uetConfig.msd || window.location.hostname
     });
     
     // Push to dataLayer with GCS alignment
@@ -347,12 +351,13 @@ function setDefaultUetConsent() {
         'event': 'uet_consent_default',
         'consent_mode': {
             'ad_storage': consentState,
-            'analytics_storage': 'denied', // Mirroring GCS initial state
+            'analytics_storage': 'denied',
             'ad_user_data': 'denied',
             'ad_personalization': 'denied'
         },
-        'gcs': 'G100', // Aligned with initial GCS signal
-        'timestamp': new Date().toISOString()
+        'gcs': 'G100',
+        'timestamp': new Date().toISOString(),
+        'uet_msd': config.uetConfig.msd || window.location.hostname
     });
 }
 
@@ -3597,13 +3602,16 @@ function updateConsentMode(consentData) {
     });
     
     // Update Microsoft UET consent if enabled
+  // Update Microsoft UET consent if enabled
     if (config.uetConfig.enabled) {
         const uetConsentState = consentData.categories.advertising ? 'granted' : 'denied';
         window.uetq.push('consent', 'update', {
-            'ad_storage': uetConsentState
+            'ad_storage': uetConsentState,
+            'msd': config.uetConfig.msd || window.location.hostname
         });
         
         // Push UET consent event to dataLayer with the exact requested format
+      // Push UET consent event to dataLayer
         window.dataLayer.push({
             'event': 'uet_consent_update',
             'uet_consent': {
@@ -3611,6 +3619,7 @@ function updateConsentMode(consentData) {
                 'status': consentData.status,
                 'src': 'update',
                 'asc': uetConsentState === 'granted' ? 'G' : 'D',
+                'msd': config.uetConfig.msd || window.location.hostname,
                 'timestamp': new Date().toISOString()
             },
             'location_data': locationData
