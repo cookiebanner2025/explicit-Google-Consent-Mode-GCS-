@@ -300,7 +300,7 @@ window.uetq = window.uetq || [];
 
 // Set default consent (deny all except security)
 gtag('consent', 'default', {
-    'wait_for_update': 500, // milliseconds to wait
+    
     'ad_storage': 'denied',
     'analytics_storage': 'denied',
     'ad_user_data': 'denied',
@@ -308,7 +308,7 @@ gtag('consent', 'default', {
     'personalization_storage': 'denied',
     'functionality_storage': 'denied',
     'security_storage': 'granted',
-    'region': ['EEA', 'UK'] // Add relevant regions
+    
 });
 
 // Set default UET consent
