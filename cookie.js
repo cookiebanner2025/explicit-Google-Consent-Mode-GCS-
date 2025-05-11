@@ -299,7 +299,6 @@ function gtag() { dataLayer.push(arguments); }
 window.uetq = window.uetq || [];
 
 // Set default consent (deny all except security)
-// Set default consent (deny all except security) with GCS signal
 gtag('consent', 'default', {
     'ad_storage': 'denied',
     'analytics_storage': 'denied',
@@ -307,14 +306,8 @@ gtag('consent', 'default', {
     'ad_personalization': 'denied',
     'personalization_storage': 'denied',
     'functionality_storage': 'denied',
-    'security_storage': 'granted',
-    'region': ['ES', 'FR'] // Add your target regions if needed
+    'security_storage': 'granted'
 });
-
-// Set default GCS signal
-gtag('set', 'ads_data_redaction', true);
-gtag('set', 'url_passthrough', true);
-setCookie('gcs_signal', 'G100', 365); // Default to all denied
 
 // Set default UET consent
 function setDefaultUetConsent() {
@@ -3327,6 +3320,7 @@ function hideFloatingButton() {
     }, 300);
 }
 
+// Cookie consent functions
 function acceptAllCookies() {
     const consentData = {
         status: 'accepted',
@@ -3349,7 +3343,7 @@ function acceptAllCookies() {
         updateConsentStats('accepted');
     }
     
-    // Push dataLayer event for consent acceptance with explicit GCS
+    // Push dataLayer event for consent acceptance with location data and GCS
     window.dataLayer.push({
         'event': 'cookie_consent_accepted',
         'consent_mode': {
@@ -3391,7 +3385,7 @@ function rejectAllCookies() {
         updateConsentStats('rejected');
     }
     
-    // Push dataLayer event for consent rejection with explicit GCS
+    // Push dataLayer event for consent rejection with location data and GCS
     window.dataLayer.push({
         'event': 'cookie_consent_rejected',
         'consent_mode': {
@@ -3415,7 +3409,6 @@ function saveCustomSettings() {
     const analyticsChecked = document.querySelector('input[data-category="analytics"]').checked;
     const advertisingChecked = document.querySelector('input[data-category="advertising"]').checked;
     
-    // Determine the appropriate GCS signal
     let gcsSignal;
     if (analyticsChecked && advertisingChecked) {
         gcsSignal = 'G111'; // Both granted
@@ -3429,7 +3422,7 @@ function saveCustomSettings() {
 
     const consentData = {
         status: 'custom',
-        gcs: gcsSignal, // Explicit GCS signal
+        gcs: gcsSignal,
         categories: {
             functional: true,
             analytics: analyticsChecked,
@@ -3464,7 +3457,7 @@ function saveCustomSettings() {
         'security_storage': 'granted'
     };
     
-    // Fire specific events based on consent choices with explicit GCS
+    // Fire specific events based on consent choices with GCS signals
     if (analyticsChecked && !advertisingChecked) {
         window.dataLayer.push({
             'event': 'analytics_cookie_accepted',
@@ -3492,6 +3485,7 @@ function saveCustomSettings() {
             'location_data': locationData
         });
     } else {
+        // For all other cases (both accepted or both rejected)
         window.dataLayer.push({
             'event': 'cookie_consent_custom',
             'consent_mode': consentStates,
@@ -3546,28 +3540,7 @@ function loadCookiesAccordingToConsent(consentData) {
 }
 
 // Update consent mode for both Google and Microsoft UET
-// Update consent mode for both Google and Microsoft UET with Explicit GCS
 function updateConsentMode(consentData) {
-    // Determine GCS signal based on consent status and categories
-    let gcsSignal;
-    
-    if (consentData.status === 'accepted') {
-        gcsSignal = 'G111'; // All granted
-    } else if (consentData.status === 'rejected') {
-        gcsSignal = 'G100'; // All denied
-    } else if (consentData.status === 'custom') {
-        if (consentData.categories.analytics && !consentData.categories.advertising) {
-            gcsSignal = 'G101'; // Analytics granted, ads denied
-        } else if (consentData.categories.advertising && !consentData.categories.analytics) {
-            gcsSignal = 'G110'; // Ads granted, analytics denied
-        } else if (consentData.categories.analytics && consentData.categories.advertising) {
-            gcsSignal = 'G111'; // Both granted
-        } else {
-            gcsSignal = 'G100'; // Both denied
-        }
-    }
-
-    // Build consent states object
     const consentStates = {
         'ad_storage': consentData.categories.advertising ? 'granted' : 'denied',
         'analytics_storage': consentData.categories.analytics ? 'granted' : 'denied',
@@ -3578,16 +3551,28 @@ function updateConsentMode(consentData) {
         'security_storage': 'granted'
     };
 
-    // Update Google consent with GCS signal
+    // Determine GCS signal based on consent status and categories
+    let gcsSignal = 'G100'; // Default to all denied
+    
+    if (consentData.status === 'accepted') {
+        gcsSignal = 'G111'; // All granted
+    } else if (consentData.status === 'custom') {
+        if (consentData.categories.analytics && !consentData.categories.advertising) {
+            gcsSignal = 'G101'; // Analytics granted, ads denied
+        } else if (consentData.categories.advertising && !consentData.categories.analytics) {
+            gcsSignal = 'G110'; // Ads granted, analytics denied
+        } else if (consentData.categories.analytics && consentData.categories.advertising) {
+            gcsSignal = 'G111'; // Both granted (same as accept all)
+        } else {
+            gcsSignal = 'G100'; // Both denied (same as reject all)
+        }
+    }
+
+    // Update Google consent with explicit GCS parameter
     gtag('consent', 'update', {
         ...consentStates,
-        'region': ['ES', 'FR'] // Add your target regions if needed
+        'region': ['ES', 'FR'] // Add your target countries if needed
     });
-    
-    // Explicitly set GCS parameter
-    gtag('set', 'ads_data_redaction', consentData.categories.advertising ? false : true);
-    gtag('set', 'url_passthrough', true);
-    gtag('set', 'developer_id.dZTNiMT', true); // Optional developer ID
     
     // Update Microsoft UET consent if enabled
     if (config.uetConfig.enabled) {
@@ -3596,7 +3581,7 @@ function updateConsentMode(consentData) {
             'ad_storage': uetConsentState
         });
         
-        // Push UET consent event to dataLayer with GCS signal
+        // Push UET consent event to dataLayer with the exact requested format
         window.dataLayer.push({
             'event': 'uet_consent_update',
             'uet_consent': {
@@ -3604,7 +3589,6 @@ function updateConsentMode(consentData) {
                 'status': consentData.status,
                 'src': 'update',
                 'asc': uetConsentState === 'granted' ? 'G' : 'D',
-                'gcs': gcsSignal,
                 'timestamp': new Date().toISOString()
             },
             'location_data': locationData
@@ -3621,9 +3605,6 @@ function updateConsentMode(consentData) {
         'timestamp': new Date().toISOString(),
         'location_data': locationData
     });
-    
-    // Store the GCS signal in a cookie for future reference
-    setCookie('gcs_signal', gcsSignal, 365);
 }
 
 // Cookie management functions
