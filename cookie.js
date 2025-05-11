@@ -15,7 +15,7 @@ uetConfig: {
     enforceInEEA: true,        // Enforce consent mode in EEA countries
     domainConfig: {
         useMsd: true,          // Enable msd parameter for cross-domain tracking
-        rootDomain: 'dev-rpractice.pantheonsite.io', // Your root domain (without subdomain)
+        rootDomain: 'pantheonsite.io', // Your root domain (without subdomain)
         includeSubdomains: true // Track across all subdomains
     }
 },
