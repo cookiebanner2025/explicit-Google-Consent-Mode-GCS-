@@ -3690,32 +3690,7 @@ function detectUetTags() {
     return [...new Set(uetTags)]; // Return unique tag IDs
 }
 
-// Add UET tag detection if autoDetectTagId is enabled
-function detectUetTagId() {
-    if (!config.uetConfig.enabled || !config.uetConfig.autoDetectTagId) {
-        return config.uetConfig.defaultTagId;
-    }
-    
-    // Look for UET tag in the page
-    const scripts = document.getElementsByTagName('script');
-    for (let i = 0; i < scripts.length; i++) {
-        const src = scripts[i].src;
-        if (src && src.includes('bat.bing.com') && src.includes('uetq')) {
-            const matches = src.match(/[?&]id=([^&]+)/);
-            if (matches && matches[1]) {
-                return matches[1];
-            }
-        }
-    }
-    
-    return config.uetConfig.defaultTagId;
-}
 
-// Initialize UET with detected tag ID
-const uetTagId = detectUetTagId();
-if (config.uetConfig.enabled && uetTagId) {
-    window.uetq.push('set', 'id', uetTagId);
-}
 
 
 // Cookie management functions
