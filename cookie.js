@@ -5,14 +5,16 @@ const config = {
     // Privacy policy URL (configurable)
     privacyPolicyUrl: 'https://yourdomain.com/privacy-policy', // Add your full privacy policy URL here
     
+    // Microsoft UET Configuration
 // Microsoft UET Configuration
 uetConfig: {
     enabled: true,
-    tagIds: ['137027166'], // Array of UET tag IDs (can have multiple)
-    autoDetectTagIds: true, // Try to detect UET tag IDs automatically
-    defaultConsent: 'denied', // 'denied' or 'granted'
-    enforceInEEA: true, // Enforce consent mode in EEA countries
-    msd: 'yourdomain.com' // Microsoft Domain parameter
+    defaultTagId: '137027166', // Fallback if auto-detection fails
+    autoDetectTagId: true,     // Try to detect UET tag ID automatically
+    defaultConsent: 'denied',  // 'denied' or 'granted'
+    enforceInEEA: true,        // Enforce consent mode in EEA countries
+    msd: 'example.com',        // Microsoft Domain parameter
+    additionalTagIds: []       // Array of additional UET tag IDs
 },
     
     // Behavior configuration
@@ -333,32 +335,22 @@ window.dataLayer.push({
 });
 
 // Set default UET consent
-// Initialize UET queue for multiple tags if not already exists
-function initializeUetQueue() {
-    if (!config.uetConfig.enabled) return;
-    
-    // Initialize each UET tag
-    config.uetConfig.tagIds.forEach(tagId => {
-        if (typeof window[`uetq_${tagId}`] === 'undefined') {
-            window[`uetq_${tagId}`] = [];
-        }
-    });
-    
-    // Set default consent for all tags
-    setDefaultUetConsent();
-}
-
-// Set default UET consent for all tags
+// Set default UET consent for all configured tags
 function setDefaultUetConsent() {
     if (!config.uetConfig.enabled) return;
     
     const consentState = config.uetConfig.defaultConsent === 'granted' ? 'granted' : 'denied';
+    const allTagIds = [config.uetConfig.defaultTagId, ...config.uetConfig.additionalTagIds].filter(Boolean);
     
-    // Apply to all UET tags
-    config.uetConfig.tagIds.forEach(tagId => {
-        window[`uetq_${tagId}`].push('consent', 'default', {
-            'ad_storage': consentState,
-            'msd': config.uetConfig.msd // Include Microsoft Domain parameter
+    // Initialize UET queue if not exists
+    window.uetq = window.uetq || [];
+    
+    // Set consent for all tag IDs
+    allTagIds.forEach(tagId => {
+        window.uetq.push('set', 'consent', {
+            tagId: tagId,
+            msd: config.uetConfig.msd,
+            ad_storage: consentState
         });
     });
     
@@ -373,10 +365,11 @@ function setDefaultUetConsent() {
         },
         'gcs': 'G100',
         'timestamp': new Date().toISOString(),
-        'uet_tags': config.uetConfig.tagIds,
+        'uet_tags': allTagIds,
         'msd': config.uetConfig.msd
     });
 }
+
 // Enhanced cookie database with detailed descriptions
 const cookieDatabase = {
     // Existing cookies
@@ -391,6 +384,7 @@ const cookieDatabase = {
     'MUID': { category: 'advertising', duration: '390 days', description: 'Microsoft Universal ID' },
     '_uetsid': { category: 'advertising', duration: '1 day', description: 'Bing Ads session ID' },
     '_uetvid': { category: 'advertising', duration: '390 days', description: 'Bing Ads visitor ID' },
+     '_uetmsd': { category: 'advertising', duration: 'Session', description: 'Microsoft UET domain storage' },
     '_fbp': { category: 'advertising', duration: '90 days', description: 'Facebook Pixel - Conversion tracking' },
     'fr': { category: 'advertising', duration: '90 days', description: 'Facebook browser ID' },
     'datr': { category: 'advertising', duration: '730 days', description: 'Facebook browser identification' },
@@ -3618,14 +3612,16 @@ function updateConsentMode(consentData) {
     });
     
     // Update Microsoft UET consent if enabled
-// Update Microsoft UET consent for all tags if enabled
+// Update Microsoft UET consent for all configured tags
 if (config.uetConfig.enabled) {
     const uetConsentState = consentData.categories.advertising ? 'granted' : 'denied';
+    const allTagIds = [config.uetConfig.defaultTagId, ...config.uetConfig.additionalTagIds].filter(Boolean);
     
-    config.uetConfig.tagIds.forEach(tagId => {
-        window[`uetq_${tagId}`].push('consent', 'update', {
-            'ad_storage': uetConsentState,
-            'msd': config.uetConfig.msd
+    allTagIds.forEach(tagId => {
+        window.uetq.push('set', 'consent', {
+            tagId: tagId,
+            msd: config.uetConfig.msd,
+            ad_storage: uetConsentState
         });
     });
     
@@ -3637,14 +3633,13 @@ if (config.uetConfig.enabled) {
             'status': consentData.status,
             'src': 'update',
             'asc': uetConsentState === 'granted' ? 'G' : 'D',
-            'timestamp': new Date().toISOString(),
-            'msd': config.uetConfig.msd
+            'timestamp': new Date().toISOString()
         },
-        'uet_tags': config.uetConfig.tagIds,
+        'uet_tags': allTagIds,
+        'msd': config.uetConfig.msd,
         'location_data': locationData
     });
 }
-    
     // Push general consent update to dataLayer with GCS signal
     window.dataLayer.push({
         'event': 'cookie_consent_update',
@@ -3656,6 +3651,27 @@ if (config.uetConfig.enabled) {
         'location_data': locationData
     });
 }
+
+function detectUetTags() {
+    if (!config.uetConfig.autoDetectTagId) return [];
+    
+    const uetTags = [];
+    const scripts = document.getElementsByTagName('script');
+    
+    for (let script of scripts) {
+        if (script.src.includes('bat.bing.com') && script.src.includes('uetq')) {
+            const tagIdMatch = script.src.match(/[?&]id=([^&]+)/);
+            if (tagIdMatch && tagIdMatch[1]) {
+                uetTags.push(tagIdMatch[1]);
+            }
+        }
+    }
+    
+    return [...new Set(uetTags)]; // Return unique tag IDs
+}
+
+
+
 
 // Cookie management functions
 function setCookie(name, value, days) {
@@ -3693,44 +3709,24 @@ function loadPerformanceCookies() {
     // This would typically load performance optimization scripts
 }
 
-function autoDetectUetTags() {
-    if (!config.uetConfig.autoDetectTagIds) return;
-    
-    const scripts = document.getElementsByTagName('script');
-    const detectedTags = [];
-    
-    for (let i = 0; i < scripts.length; i++) {
-        const src = scripts[i].src;
-        if (src && src.includes('bat.bing.com') && src.includes('uetq')) {
-            const tagIdMatch = src.match(/uetq=(\d+)/);
-            if (tagIdMatch && tagIdMatch[1]) {
-                const tagId = tagIdMatch[1];
-                if (!config.uetConfig.tagIds.includes(tagId)) {
-                    detectedTags.push(tagId);
-                }
-            }
-        }
-    }
-    
-    if (detectedTags.length > 0) {
-        config.uetConfig.tagIds = [...new Set([...config.uetConfig.tagIds, ...detectedTags])];
-        initializeUetQueue(); // Re-initialize with new tags
-    }
-}
-
-
-
 // Main execution flow
 document.addEventListener('DOMContentLoaded', async function() {
-      // Ensure location data is loaded first
+      
+    
+    if (config.uetConfig.enabled && config.uetConfig.autoDetectTagId) {
+    const detectedTags = detectUetTags();
+    if (detectedTags.length > 0) {
+        config.uetConfig.additionalTagIds = detectedTags.filter(id => id !== config.uetConfig.defaultTagId);
+    }
+}
+    
+    
+    // Ensure location data is loaded first
     if (!sessionStorage.getItem('locationData')) {
         await fetchLocationData();
     }  
    
-  if (config.uetConfig.enabled) {
-        autoDetectUetTags(); // Optional auto-detection
-        initializeUetQueue();
-    }
+
  // Check if domain is allowed
     if (!isDomainAllowed()) {
         console.log('Cookie consent banner not shown - domain not allowed');
