@@ -6,15 +6,20 @@ const config = {
     privacyPolicyUrl: 'https://yourdomain.com/privacy-policy', // Add your full privacy policy URL here
     
     // Microsoft UET Configuration
-    // Microsoft UET Configuration
-    uetConfig: {
-        enabled: true,
-        defaultTagId: '137027166', // Fallback if auto-detection fails
-        autoDetectTagId: true,     // Try to detect UET tag ID automatically
-        defaultConsent: 'denied',  // 'denied' or 'granted'
-        enforceInEEA: true,        // Enforce consent mode in EEA countries
-        msd: 'dev-rpractice.pantheonsite.io'     // Add this line - your Microsoft domain
-    },
+// Microsoft UET Configuration
+uetConfig: {
+    enabled: true,
+    defaultTagId: '137027166', // Fallback if auto-detection fails
+    autoDetectTagId: true,     // Try to detect UET tag ID automatically
+    defaultConsent: 'denied',  // 'denied' or 'granted'
+    enforceInEEA: true,        // Enforce consent mode in EEA countries
+    domainConfig: {
+        useMsd: true,          // Enable msd parameter for cross-domain tracking
+        rootDomain: 'yourdomain.com', // Your root domain (without subdomain)
+        includeSubdomains: true // Track across all subdomains
+    }
+},
+    
     // Behavior configuration
     behavior: {
         autoShow: true,
@@ -333,17 +338,32 @@ window.dataLayer.push({
 });
 
 // Set default UET consent
+// Set default UET consent with domain handling
 function setDefaultUetConsent() {
     if (!config.uetConfig.enabled) return;
     
-    // Redundant safeguard
+    // Initialize UET queue if not exists
     if (typeof window.uetq === 'undefined') window.uetq = [];
+    
     const consentState = config.uetConfig.defaultConsent === 'granted' ? 'granted' : 'denied';
     
-    // Add msd parameter here
+    // Add msd parameter if configured
+    if (config.uetConfig.domainConfig.useMsd) {
+        const domainParts = window.location.hostname.split('.');
+        const isSubdomain = domainParts.length > 2;
+        
+        if (isSubdomain && config.uetConfig.domainConfig.includeSubdomains) {
+            // For subdomains, use the root domain as msd
+            window.uetq.push('set', 'msd', config.uetConfig.domainConfig.rootDomain);
+        } else if (!isSubdomain) {
+            // For root domain, set msd to the root domain
+            window.uetq.push('set', 'msd', config.uetConfig.domainConfig.rootDomain);
+        }
+    }
+    
+    // Set default consent
     window.uetq.push('consent', 'default', {
-        'ad_storage': consentState,
-        'msd': config.uetConfig.msd || window.location.hostname
+        'ad_storage': consentState
     });
     
     // Push to dataLayer with GCS alignment
@@ -357,7 +377,9 @@ function setDefaultUetConsent() {
         },
         'gcs': 'G100',
         'timestamp': new Date().toISOString(),
-        'uet_msd': config.uetConfig.msd || window.location.hostname
+        'msd_configured': config.uetConfig.domainConfig.useMsd,
+        'msd_value': config.uetConfig.domainConfig.useMsd ? 
+            config.uetConfig.domainConfig.rootDomain : null
     });
 }
 
@@ -3602,29 +3624,41 @@ function updateConsentMode(consentData) {
     });
     
     // Update Microsoft UET consent if enabled
-  // Update Microsoft UET consent if enabled
-    if (config.uetConfig.enabled) {
-        const uetConsentState = consentData.categories.advertising ? 'granted' : 'denied';
-        window.uetq.push('consent', 'update', {
-            'ad_storage': uetConsentState,
-            'msd': config.uetConfig.msd || window.location.hostname
-        });
+   // In the updateConsentMode function, update the UET section:
+if (config.uetConfig.enabled) {
+    const uetConsentState = consentData.categories.advertising ? 'granted' : 'denied';
+    
+    // Add msd parameter if configured and consent is granted
+    if (config.uetConfig.domainConfig.useMsd && uetConsentState === 'granted') {
+        const domainParts = window.location.hostname.split('.');
+        const isSubdomain = domainParts.length > 2;
         
-        // Push UET consent event to dataLayer with the exact requested format
-      // Push UET consent event to dataLayer
-        window.dataLayer.push({
-            'event': 'uet_consent_update',
-            'uet_consent': {
-                'ad_storage': uetConsentState,
-                'status': consentData.status,
-                'src': 'update',
-                'asc': uetConsentState === 'granted' ? 'G' : 'D',
-                'msd': config.uetConfig.msd || window.location.hostname,
-                'timestamp': new Date().toISOString()
-            },
-            'location_data': locationData
-        });
+        if (isSubdomain && config.uetConfig.domainConfig.includeSubdomains) {
+            window.uetq.push('set', 'msd', config.uetConfig.domainConfig.rootDomain);
+        } else if (!isSubdomain) {
+            window.uetq.push('set', 'msd', config.uetConfig.domainConfig.rootDomain);
+        }
     }
+    
+    window.uetq.push('consent', 'update', {
+        'ad_storage': uetConsentState
+    });
+    
+    // Push UET consent event to dataLayer
+    window.dataLayer.push({
+        'event': 'uet_consent_update',
+        'uet_consent': {
+            'ad_storage': uetConsentState,
+            'status': consentData.status,
+            'src': 'update',
+            'asc': uetConsentState === 'granted' ? 'G' : 'D',
+            'msd': config.uetConfig.domainConfig.useMsd ? 
+                config.uetConfig.domainConfig.rootDomain : 'not_configured',
+            'timestamp': new Date().toISOString()
+        },
+        'location_data': locationData
+    });
+}
     
     // Push general consent update to dataLayer with GCS signal
     window.dataLayer.push({
