@@ -300,13 +300,15 @@ window.uetq = window.uetq || [];
 
 // Set default consent (deny all except security)
 gtag('consent', 'default', {
+    'wait_for_update': 500, // milliseconds to wait
     'ad_storage': 'denied',
     'analytics_storage': 'denied',
     'ad_user_data': 'denied',
     'ad_personalization': 'denied',
     'personalization_storage': 'denied',
     'functionality_storage': 'denied',
-    'security_storage': 'granted'
+    'security_storage': 'granted',
+    'region': ['EEA', 'UK'] // Add relevant regions
 });
 
 // Set default UET consent
@@ -3571,7 +3573,7 @@ function updateConsentMode(consentData) {
     // Update Google consent with explicit GCS parameter
     gtag('consent', 'update', {
         ...consentStates,
-      'gcs': gcsSignal // Add this line
+      
     });
     
     // Update Microsoft UET consent if enabled
