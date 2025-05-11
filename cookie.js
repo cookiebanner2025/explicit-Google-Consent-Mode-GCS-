@@ -3552,11 +3552,7 @@ function clearCategoryCookies(category) {
 }
 
 function loadCookiesAccordingToConsent(consentData) {
-    if (consentData.categories.analytics) {
-        loadAnalyticsCookies();
-    }
-    
-    if (consentData.categories.advertising) {
+   if (consentData.categories.advertising) {
         loadAdvertisingCookies();
     }
     
@@ -3655,14 +3651,7 @@ function getCookie(name) {
     return null;
 }
 
-// Tracking functions
-function loadAnalyticsCookies() {
-    console.log('Loading analytics cookies');
-    if (typeof ga === 'undefined' && typeof gtag === 'function') {
-        gtag('js', new Date());
-        gtag('config', 'YOUR_GA4_MEASUREMENT_ID');
-    }
-}
+
 // Load analytics cookies function
 function loadAdvertisingCookies() {
     console.log('Loading advertising cookies');
