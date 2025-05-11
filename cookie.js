@@ -299,35 +299,59 @@ function gtag() { dataLayer.push(arguments); }
 window.uetq = window.uetq || [];
 
 // Set default consent (deny all except security)
+// ============== IMPLEMENTATION SECTION ============== //
+// Initialize dataLayer for Google Tag Manager
+window.dataLayer = window.dataLayer || [];
+function gtag() { dataLayer.push(arguments); }
+
+// Set default consent (deny all except security) AND initial GCS signal
 gtag('consent', 'default', {
-    
     'ad_storage': 'denied',
     'analytics_storage': 'denied',
     'ad_user_data': 'denied',
     'ad_personalization': 'denied',
     'personalization_storage': 'denied',
     'functionality_storage': 'denied',
-    'security_storage': 'granted',
-    
+    'security_storage': 'granted'
+});
+
+// Push initial GCS signal (G100) immediately after default consent
+window.dataLayer.push({
+    'event': 'initial_consent_state',
+    'consent_mode': {
+        'ad_storage': 'denied',
+        'analytics_storage': 'denied',
+        'ad_user_data': 'denied',
+        'ad_personalization': 'denied',
+        'personalization_storage': 'denied',
+        'functionality_storage': 'denied',
+        'security_storage': 'granted'
+    },
+    'gcs': 'G100', // Explicit initial GCS signal
+    'timestamp': new Date().toISOString()
 });
 
 // Set default UET consent
 function setDefaultUetConsent() {
     if (!config.uetConfig.enabled) return;
-     // Redundant safeguard
-  if (typeof window.uetq === 'undefined') window.uetq = [];  // <-- ADD THIS LINE
+    // Redundant safeguard
+    if (typeof window.uetq === 'undefined') window.uetq = [];
     const consentState = config.uetConfig.defaultConsent === 'granted' ? 'granted' : 'denied';
     
     window.uetq.push('consent', 'default', {
         'ad_storage': consentState
     });
     
-    // Push to dataLayer
+    // Push to dataLayer with GCS alignment
     window.dataLayer.push({
         'event': 'uet_consent_default',
         'consent_mode': {
-            'ad_storage': consentState
+            'ad_storage': consentState,
+            'analytics_storage': 'denied', // Mirroring GCS initial state
+            'ad_user_data': 'denied',
+            'ad_personalization': 'denied'
         },
+        'gcs': 'G100', // Aligned with initial GCS signal
         'timestamp': new Date().toISOString()
     });
 }
