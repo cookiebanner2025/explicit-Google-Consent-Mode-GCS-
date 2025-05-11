@@ -1,23 +1,18 @@
 const config = {
     // Domain restriction
-    allowedDomains: ['dev-rpractice.pantheonsite.io', 'habibarafat.com'],
+    allowedDomains: ['dev-rpractice.pantheonsite.io', 'assistenzaelettrodomestici-firenze.com'],
     
     // Privacy policy URL (configurable)
     privacyPolicyUrl: 'https://yourdomain.com/privacy-policy', // Add your full privacy policy URL here
     
     // Microsoft UET Configuration
-// Microsoft UET Configuration
-uetConfig: {
-    enabled: true,
-    defaultTagId: '137027166',
-    autoDetectTagId: true,
-    defaultConsent: 'denied',
-    domainConfig: {
-        useMsd: true,
-        rootDomain: 'pantheonsite.io', // ONLY CHANGE THIS LINE
-        includeSubdomains: true
-    }
-}
+    uetConfig: {
+        enabled: true,
+        defaultTagId: '137027166', // Fallback if auto-detection fails
+        autoDetectTagId: true,     // Try to detect UET tag ID automatically
+        defaultConsent: 'denied',  // 'denied' or 'granted'
+        enforceInEEA: true         // Enforce consent mode in EEA countries
+    },
     
     // Behavior configuration
     behavior: {
@@ -337,42 +332,12 @@ window.dataLayer.push({
 });
 
 // Set default UET consent
-// Set default UET consent with domain handling
 function setDefaultUetConsent() {
-      // ===== DEBUG CODE =====
-    console.log('--- UET Debug Start ---');
-    console.log('Current Domain:', window.location.hostname);
-    console.log('Consent Cookie:', getCookie('cookie_consent') || 'Not found');
-    
-    if (getCookie('cookie_consent')) {
-        const consentData = JSON.parse(getCookie('cookie_consent'));
-        console.log('Advertising Consent:', consentData.categories.advertising ? 'GRANTED' : 'DENIED');
-    }
-    // ===== END DEBUG =====
-
-    
     if (!config.uetConfig.enabled) return;
-    
-    // Initialize UET queue if not exists
+    // Redundant safeguard
     if (typeof window.uetq === 'undefined') window.uetq = [];
-    
     const consentState = config.uetConfig.defaultConsent === 'granted' ? 'granted' : 'denied';
     
-    // Add msd parameter if configured
-    if (config.uetConfig.domainConfig.useMsd) {
-        const domainParts = window.location.hostname.split('.');
-        const isSubdomain = domainParts.length > 2;
-        
-        if (isSubdomain && config.uetConfig.domainConfig.includeSubdomains) {
-            // For subdomains, use the root domain as msd
-            window.uetq.push('set', 'msd', config.uetConfig.domainConfig.rootDomain);
-        } else if (!isSubdomain) {
-            // For root domain, set msd to the root domain
-            window.uetq.push('set', 'msd', config.uetConfig.domainConfig.rootDomain);
-        }
-    }
-    
-    // Set default consent
     window.uetq.push('consent', 'default', {
         'ad_storage': consentState
     });
@@ -382,15 +347,12 @@ function setDefaultUetConsent() {
         'event': 'uet_consent_default',
         'consent_mode': {
             'ad_storage': consentState,
-            'analytics_storage': 'denied',
+            'analytics_storage': 'denied', // Mirroring GCS initial state
             'ad_user_data': 'denied',
             'ad_personalization': 'denied'
         },
-        'gcs': 'G100',
-        'timestamp': new Date().toISOString(),
-        'msd_configured': config.uetConfig.domainConfig.useMsd,
-        'msd_value': config.uetConfig.domainConfig.useMsd ? 
-            config.uetConfig.domainConfig.rootDomain : null
+        'gcs': 'G100', // Aligned with initial GCS signal
+        'timestamp': new Date().toISOString()
     });
 }
 
@@ -3635,41 +3597,25 @@ function updateConsentMode(consentData) {
     });
     
     // Update Microsoft UET consent if enabled
-   // In the updateConsentMode function, update the UET section:
-if (config.uetConfig.enabled) {
-    const uetConsentState = consentData.categories.advertising ? 'granted' : 'denied';
-    
-    // Add msd parameter if configured and consent is granted
-    if (config.uetConfig.domainConfig.useMsd && uetConsentState === 'granted') {
-        const domainParts = window.location.hostname.split('.');
-        const isSubdomain = domainParts.length > 2;
+    if (config.uetConfig.enabled) {
+        const uetConsentState = consentData.categories.advertising ? 'granted' : 'denied';
+        window.uetq.push('consent', 'update', {
+            'ad_storage': uetConsentState
+        });
         
-        if (isSubdomain && config.uetConfig.domainConfig.includeSubdomains) {
-            window.uetq.push('set', 'msd', config.uetConfig.domainConfig.rootDomain);
-        } else if (!isSubdomain) {
-            window.uetq.push('set', 'msd', config.uetConfig.domainConfig.rootDomain);
-        }
+        // Push UET consent event to dataLayer with the exact requested format
+        window.dataLayer.push({
+            'event': 'uet_consent_update',
+            'uet_consent': {
+                'ad_storage': uetConsentState,
+                'status': consentData.status,
+                'src': 'update',
+                'asc': uetConsentState === 'granted' ? 'G' : 'D',
+                'timestamp': new Date().toISOString()
+            },
+            'location_data': locationData
+        });
     }
-    
-    window.uetq.push('consent', 'update', {
-        'ad_storage': uetConsentState
-    });
-    
-    // Push UET consent event to dataLayer
-    window.dataLayer.push({
-        'event': 'uet_consent_update',
-        'uet_consent': {
-            'ad_storage': uetConsentState,
-            'status': consentData.status,
-            'src': 'update',
-            'asc': uetConsentState === 'granted' ? 'G' : 'D',
-            'msd': config.uetConfig.domainConfig.useMsd ? 
-                config.uetConfig.domainConfig.rootDomain : 'not_configured',
-            'timestamp': new Date().toISOString()
-        },
-        'location_data': locationData
-    });
-}
     
     // Push general consent update to dataLayer with GCS signal
     window.dataLayer.push({
