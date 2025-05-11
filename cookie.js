@@ -3693,6 +3693,33 @@ function loadPerformanceCookies() {
     // This would typically load performance optimization scripts
 }
 
+function autoDetectUetTags() {
+    if (!config.uetConfig.autoDetectTagIds) return;
+    
+    const scripts = document.getElementsByTagName('script');
+    const detectedTags = [];
+    
+    for (let i = 0; i < scripts.length; i++) {
+        const src = scripts[i].src;
+        if (src && src.includes('bat.bing.com') && src.includes('uetq')) {
+            const tagIdMatch = src.match(/uetq=(\d+)/);
+            if (tagIdMatch && tagIdMatch[1]) {
+                const tagId = tagIdMatch[1];
+                if (!config.uetConfig.tagIds.includes(tagId)) {
+                    detectedTags.push(tagId);
+                }
+            }
+        }
+    }
+    
+    if (detectedTags.length > 0) {
+        config.uetConfig.tagIds = [...new Set([...config.uetConfig.tagIds, ...detectedTags])];
+        initializeUetQueue(); // Re-initialize with new tags
+    }
+}
+
+
+
 // Main execution flow
 document.addEventListener('DOMContentLoaded', async function() {
       // Ensure location data is loaded first
@@ -3700,7 +3727,10 @@ document.addEventListener('DOMContentLoaded', async function() {
         await fetchLocationData();
     }  
    
-
+  if (config.uetConfig.enabled) {
+        autoDetectUetTags(); // Optional auto-detection
+        initializeUetQueue();
+    }
  // Check if domain is allowed
     if (!isDomainAllowed()) {
         console.log('Cookie consent banner not shown - domain not allowed');
