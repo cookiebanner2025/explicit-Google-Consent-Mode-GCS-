@@ -13,7 +13,7 @@ const config = {
         autoDetectTagId: true,     // Try to detect UET tag ID automatically
         defaultConsent: 'denied',  // 'denied' or 'granted'
         enforceInEEA: true,        // Enforce consent mode in EEA countries
-        msd: 'yourdomain.com'     // Add this line - your Microsoft domain
+        msd: 'dev-rpractice.pantheonsite.io'     // Add this line - your Microsoft domain
     },
     // Behavior configuration
     behavior: {
