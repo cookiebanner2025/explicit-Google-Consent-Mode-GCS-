@@ -3571,7 +3571,7 @@ function updateConsentMode(consentData) {
     // Update Google consent with explicit GCS parameter
     gtag('consent', 'update', {
         ...consentStates,
-        'region': ['ES', 'FR'] // Add your target countries if needed
+      
     });
     
     // Update Microsoft UET consent if enabled
