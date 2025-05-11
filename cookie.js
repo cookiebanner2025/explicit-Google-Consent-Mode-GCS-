@@ -1,6 +1,6 @@
 const config = {
     // Domain restriction
-    allowedDomains: ['dev-rpractice.pantheonsite.io', 'assistenzaelettrodomestici-firenze.com'],
+    allowedDomains: ['dev-rpractice.pantheonsite.io', 'habibarafat.com'],
     
     // Privacy policy URL (configurable)
     privacyPolicyUrl: 'https://yourdomain.com/privacy-policy', // Add your full privacy policy URL here
@@ -15,7 +15,7 @@ uetConfig: {
     enforceInEEA: true,        // Enforce consent mode in EEA countries
     domainConfig: {
         useMsd: true,          // Enable msd parameter for cross-domain tracking
-        rootDomain: 'dev-rpractice.pantheonsite.io', // Your root domain (without subdomain)
+        rootDomain: 'habibarafat.com', // Your root domain (without subdomain)
         includeSubdomains: true // Track across all subdomains
     }
 },
