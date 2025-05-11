@@ -9,16 +9,15 @@ const config = {
 // Microsoft UET Configuration
 uetConfig: {
     enabled: true,
-    defaultTagId: '137027166', // Fallback if auto-detection fails
-    autoDetectTagId: true,     // Try to detect UET tag ID automatically
-    defaultConsent: 'denied',  // 'denied' or 'granted'
-    enforceInEEA: true,        // Enforce consent mode in EEA countries
+    defaultTagId: '137027166',
+    autoDetectTagId: true,
+    defaultConsent: 'denied',
     domainConfig: {
-        useMsd: true,          // Enable msd parameter for cross-domain tracking
-        rootDomain: 'pantheonsite.io', // Your root domain (without subdomain)
-        includeSubdomains: true // Track across all subdomains
+        useMsd: true,
+        rootDomain: 'pantheonsite.io', // ONLY CHANGE THIS LINE
+        includeSubdomains: true
     }
-},
+}
     
     // Behavior configuration
     behavior: {
@@ -340,6 +339,18 @@ window.dataLayer.push({
 // Set default UET consent
 // Set default UET consent with domain handling
 function setDefaultUetConsent() {
+      // ===== DEBUG CODE =====
+    console.log('--- UET Debug Start ---');
+    console.log('Current Domain:', window.location.hostname);
+    console.log('Consent Cookie:', getCookie('cookie_consent') || 'Not found');
+    
+    if (getCookie('cookie_consent')) {
+        const consentData = JSON.parse(getCookie('cookie_consent'));
+        console.log('Advertising Consent:', consentData.categories.advertising ? 'GRANTED' : 'DENIED');
+    }
+    // ===== END DEBUG =====
+
+    
     if (!config.uetConfig.enabled) return;
     
     // Initialize UET queue if not exists
