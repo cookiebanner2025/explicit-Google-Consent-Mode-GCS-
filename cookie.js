@@ -7,15 +7,16 @@ const config = {
     
     // Microsoft UET Configuration
 // Microsoft UET Configuration
-uetConfig: {
-    enabled: true,
-    defaultTagId: '137027166', // Fallback if auto-detection fails
-    autoDetectTagId: true,     // Try to detect UET tag ID automatically
-    defaultConsent: 'denied',  // 'denied' or 'granted'
-    enforceInEEA: true,        // Enforce consent mode in EEA countries
-    msd: 'example.com',        // Microsoft Domain parameter
-    additionalTagIds: []       // Array of additional UET tag IDs
-},
+    uetConfig: {
+        enabled: true,
+        defaultTagId: '137027166', // Fallback if auto-detection fails
+        autoDetectTagId: true,     // Try to detect UET tag ID automatically
+        defaultConsent: 'denied',  // 'denied' or 'granted'
+        enforceInEEA: true,        // Enforce consent mode in EEA countries
+        msd: 'yourdomain.com',     // Microsoft Domain - set this to your domain
+        src: 'consent',            // Source of consent update
+        asc: 'D'                   // Default asc value (D for denied)
+    },
     
     // Behavior configuration
     behavior: {
@@ -295,7 +296,14 @@ uetConfig: {
 // Initialize dataLayer for Google Tag Manager
 window.dataLayer = window.dataLayer || [];
 // Initialize UET queue if not already exists (Microsoft Consent Mode)
-if (typeof window.uetq === 'undefined') window.uetq = [];  // <-- ADD THIS LINE
+if (typeof window.uetq === 'undefined') {
+    window.uetq = [];
+    
+    // Add UET configuration parameters
+    window.uetq.push('set', 'msd', config.uetConfig.msd);
+    window.uetq.push('set', 'src', config.uetConfig.src);
+    window.uetq.push('set', 'asc', config.uetConfig.asc);
+}
 function gtag() { dataLayer.push(arguments); }
 
 // Initialize UET queue if not already exists
@@ -336,37 +344,43 @@ window.dataLayer.push({
 
 // Set default UET consent
 // Set default UET consent for all configured tags
+// Enhanced setDefaultUetConsent function
 function setDefaultUetConsent() {
     if (!config.uetConfig.enabled) return;
     
+    // Redundant safeguard
+    if (typeof window.uetq === 'undefined') {
+        window.uetq = [];
+        window.uetq.push('set', 'msd', config.uetConfig.msd);
+        window.uetq.push('set', 'src', config.uetConfig.src);
+        window.uetq.push('set', 'asc', config.uetConfig.asc);
+    }
+    
     const consentState = config.uetConfig.defaultConsent === 'granted' ? 'granted' : 'denied';
-    const allTagIds = [config.uetConfig.defaultTagId, ...config.uetConfig.additionalTagIds].filter(Boolean);
+    const ascValue = consentState === 'granted' ? 'G' : 'D';
     
-    // Initialize UET queue if not exists
-    window.uetq = window.uetq || [];
-    
-    // Set consent for all tag IDs
-    allTagIds.forEach(tagId => {
-        window.uetq.push('set', 'consent', {
-            tagId: tagId,
-            msd: config.uetConfig.msd,
-            ad_storage: consentState
-        });
+    window.uetq.push('consent', 'default', {
+        'ad_storage': consentState,
+        'msd': config.uetConfig.msd,
+        'src': 'default',
+        'asc': ascValue
     });
+    
+    // Update the config with current asc value
+    config.uetConfig.asc = ascValue;
     
     // Push to dataLayer with GCS alignment
     window.dataLayer.push({
         'event': 'uet_consent_default',
-        'consent_mode': {
+        'uet_consent': {
             'ad_storage': consentState,
-            'analytics_storage': 'denied',
-            'ad_user_data': 'denied',
-            'ad_personalization': 'denied'
+            'msd': config.uetConfig.msd,
+            'src': 'default',
+            'asc': ascValue,
+            'timestamp': new Date().toISOString()
         },
-        'gcs': 'G100',
-        'timestamp': new Date().toISOString(),
-        'uet_tags': allTagIds,
-        'msd': config.uetConfig.msd
+        'gcs': 'G100', // Aligned with initial GCS signal
+        'timestamp': new Date().toISOString()
     });
 }
 
@@ -3613,33 +3627,39 @@ function updateConsentMode(consentData) {
     
     // Update Microsoft UET consent if enabled
 // Update Microsoft UET consent for all configured tags
-if (config.uetConfig.enabled) {
-    const uetConsentState = consentData.categories.advertising ? 'granted' : 'denied';
-    const allTagIds = [config.uetConfig.defaultTagId, ...config.uetConfig.additionalTagIds].filter(Boolean);
+// Enhanced updateConsentMode function with full UET support
+function updateConsentMode(consentData) {
+    // ... (keep existing Google consent code)
     
-    allTagIds.forEach(tagId => {
-        window.uetq.push('set', 'consent', {
-            tagId: tagId,
-            msd: config.uetConfig.msd,
-            ad_storage: uetConsentState
-        });
-    });
-    
-    // Push UET consent event to dataLayer
-    window.dataLayer.push({
-        'event': 'uet_consent_update',
-        'uet_consent': {
+    // Enhanced Microsoft UET consent if enabled
+    if (config.uetConfig.enabled) {
+        const uetConsentState = consentData.categories.advertising ? 'granted' : 'denied';
+        const ascValue = uetConsentState === 'granted' ? 'G' : 'D';
+        
+        window.uetq.push('consent', 'update', {
             'ad_storage': uetConsentState,
-            'status': consentData.status,
+            'msd': config.uetConfig.msd,
             'src': 'update',
-            'asc': uetConsentState === 'granted' ? 'G' : 'D',
-            'timestamp': new Date().toISOString()
-        },
-        'uet_tags': allTagIds,
-        'msd': config.uetConfig.msd,
-        'location_data': locationData
-    });
-}
+            'asc': ascValue
+        });
+        
+        // Update the config with current asc value
+        config.uetConfig.asc = ascValue;
+        
+        // Push UET consent event to dataLayer with the exact requested format
+        window.dataLayer.push({
+            'event': 'uet_consent_update',
+            'uet_consent': {
+                'ad_storage': uetConsentState,
+                'msd': config.uetConfig.msd,
+                'src': 'update',
+                'asc': ascValue,
+                'status': consentData.status,
+                'timestamp': new Date().toISOString()
+            },
+            'location_data': locationData
+        });
+    }
     // Push general consent update to dataLayer with GCS signal
     window.dataLayer.push({
         'event': 'cookie_consent_update',
@@ -3670,7 +3690,32 @@ function detectUetTags() {
     return [...new Set(uetTags)]; // Return unique tag IDs
 }
 
+// Add UET tag detection if autoDetectTagId is enabled
+function detectUetTagId() {
+    if (!config.uetConfig.enabled || !config.uetConfig.autoDetectTagId) {
+        return config.uetConfig.defaultTagId;
+    }
+    
+    // Look for UET tag in the page
+    const scripts = document.getElementsByTagName('script');
+    for (let i = 0; i < scripts.length; i++) {
+        const src = scripts[i].src;
+        if (src && src.includes('bat.bing.com') && src.includes('uetq')) {
+            const matches = src.match(/[?&]id=([^&]+)/);
+            if (matches && matches[1]) {
+                return matches[1];
+            }
+        }
+    }
+    
+    return config.uetConfig.defaultTagId;
+}
 
+// Initialize UET with detected tag ID
+const uetTagId = detectUetTagId();
+if (config.uetConfig.enabled && uetTagId) {
+    window.uetq.push('set', 'id', uetTagId);
+}
 
 
 // Cookie management functions
