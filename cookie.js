@@ -96,16 +96,12 @@ const config = {
     },
     
     // Geo-targeting configuration
- // In your config object, update the geoConfig section:
 geoConfig: {
-    allowedCountries: [], // Only show in these countries (empty = all allowed)
-    allowedRegions: [], // Only show in these regions
-    allowedCities: [], // Only show in these cities
+    euOnly: true, // Only show in EU countries
     blockedCountries: [], // Never show in these countries
     blockedRegions: [], // Never show in these regions
     blockedCities: [], // Never show in these cities
-    euOnly: true, // NEW: Set to true to only show in EU countries
-    specificRegions: ['EU'] // NEW: Can specify 'EU' or other regions
+    // Remove other unnecessary properties
 }
     
     // Analytics configuration
@@ -1675,7 +1671,7 @@ function isDomainAllowed() {
 function checkGeoTargeting(geoData) {
     // If we don't have country data, allow by default (or deny if you prefer)
     if (!geoData || !geoData.country || geoData.country === 'Unknown') {
-        return !config.geoConfig.euOnly; // If EU-only mode, deny unknown locations
+        return false; // Deny unknown locations in EU-only mode
     }
 
     // Check blocked locations first (highest priority)
@@ -1699,14 +1695,9 @@ function checkGeoTargeting(geoData) {
         return EU_COUNTRIES.includes(geoData.country);
     }
 
-    // Check if specific regions are specified
-    if (config.geoConfig.specificRegions.length > 0) {
-        if (config.geoConfig.specificRegions.includes('EU') && 
-            EU_COUNTRIES.includes(geoData.country)) {
-            return true;
-        }
-        return config.geoConfig.specificRegions.includes(geoData.country);
-    }
+    // If no restrictions, allow by default
+    return true;
+}
 
     // Check allowed locations (if any restrictions are set)
     if (config.geoConfig.allowedCountries.length > 0 && 
@@ -3732,6 +3723,13 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
 
+      // Check geo-targeting before proceeding
+    const geoAllowed = checkGeoTargeting(locationData);
+    if (!geoAllowed) {
+        console.log('Cookie consent banner not shown - geo-targeting restriction');
+        return;
+    }
+    
     // Load analytics data from storage
     if (config.analytics.enabled) {
         loadAnalyticsData();
@@ -3743,12 +3741,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Fetch location data asynchronously
     await fetchLocationData();
     
-      // Check geo-targeting before proceeding
-    const geoAllowed = checkGeoTargeting(locationData);
-    if (!geoAllowed) {
-        console.log('Cookie consent banner not shown - geo-targeting restriction');
-        return;
-    }
 
     // Scan and categorize existing cookies
     const detectedCookies = scanAndCategorizeCookies();
