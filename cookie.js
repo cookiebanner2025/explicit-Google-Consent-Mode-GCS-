@@ -68,7 +68,7 @@ const config = {
     
     // Geo-targeting configuration
     geoConfig: {
-        allowedCountries: [],
+        allowedCountries: ['AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE'],
         allowedRegions: [],
         allowedCities: [],
         blockedCountries: [],
@@ -2999,11 +2999,6 @@ function injectConsentHTML(detectedCookies, language = 'en') {
 
 // Check if banner should be shown based on schedule
 function shouldShowBanner() {
-       // First check if user is in EU
-    const euCountries = ['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK'];
-    if (!euCountries.includes(locationData.country)) {
-        return false;
-    }
     if (!config.behavior.bannerSchedule.enabled) {
         return true;
     }
