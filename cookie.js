@@ -5,18 +5,13 @@ const config = {
     // Privacy policy URL (configurable)
     privacyPolicyUrl: 'https://yourdomain.com/privacy-policy', // Add your full privacy policy URL here
     
-     // Microsoft UET Configuration - updated with msd settings
+    // Microsoft UET Configuration
     uetConfig: {
         enabled: true,
         defaultTagId: '137027166', // Fallback if auto-detection fails
         autoDetectTagId: true,     // Try to detect UET tag ID automatically
         defaultConsent: 'denied',  // 'denied' or 'granted'
-        enforceInEEA: true,        // Enforce consent mode in EEA countries
-        domainHandling: {
-            rootDomain: window.location.hostname,
-            includeSubdomains: true,
-            msdCookieName: '_uetmsdns' // Microsoft's default msd cookie name
-        }
+        enforceInEEA: true         // Enforce consent mode in EEA countries
     },
     
     // Behavior configuration
@@ -337,19 +332,12 @@ window.dataLayer.push({
 });
 
 // Set default UET consent
-// Set default UET consent with msd handling
 function setDefaultUetConsent() {
     if (!config.uetConfig.enabled) return;
-    
     // Redundant safeguard
     if (typeof window.uetq === 'undefined') window.uetq = [];
-    
     const consentState = config.uetConfig.defaultConsent === 'granted' ? 'granted' : 'denied';
     
-    // Set msd cookie for domain handling if not already set
-    setMsdCookie();
-    
-    // Push consent to UET queue
     window.uetq.push('consent', 'default', {
         'ad_storage': consentState
     });
@@ -364,10 +352,10 @@ function setDefaultUetConsent() {
             'ad_personalization': 'denied'
         },
         'gcs': 'G100', // Aligned with initial GCS signal
-        'timestamp': new Date().toISOString(),
-        'uet_msd': getMsdCookieValue() // Include msd value in dataLayer
+        'timestamp': new Date().toISOString()
     });
 }
+
 // Enhanced cookie database with detailed descriptions
 const cookieDatabase = {
     // Existing cookies
@@ -382,12 +370,6 @@ const cookieDatabase = {
     'MUID': { category: 'advertising', duration: '390 days', description: 'Microsoft Universal ID' },
     '_uetsid': { category: 'advertising', duration: '1 day', description: 'Bing Ads session ID' },
     '_uetvid': { category: 'advertising', duration: '390 days', description: 'Bing Ads visitor ID' },
-    '_uetmsdns': { 
-        category: 'advertising', 
-        duration: '1 year', 
-        description: 'Microsoft UET domain session cookie for cross-domain tracking' 
-    },
-    
     '_fbp': { category: 'advertising', duration: '90 days', description: 'Facebook Pixel - Conversion tracking' },
     'fr': { category: 'advertising', duration: '90 days', description: 'Facebook browser ID' },
     'datr': { category: 'advertising', duration: '730 days', description: 'Facebook browser identification' },
@@ -3017,6 +2999,11 @@ function injectConsentHTML(detectedCookies, language = 'en') {
 
 // Check if banner should be shown based on schedule
 function shouldShowBanner() {
+       // First check if user is in EU
+    const euCountries = ['AT', 'BE', 'BG', 'CY', 'CZ', 'DE', 'DK', 'EE', 'ES', 'FI', 'FR', 'GR', 'HR', 'HU', 'IE', 'IT', 'LT', 'LU', 'LV', 'MT', 'NL', 'PL', 'PT', 'RO', 'SE', 'SI', 'SK'];
+    if (!euCountries.includes(locationData.country)) {
+        return false;
+    }
     if (!config.behavior.bannerSchedule.enabled) {
         return true;
     }
@@ -3080,44 +3067,7 @@ function shouldShowBanner() {
 
     return true;
 }
-// Set the msd cookie for cross-domain tracking
-function setMsdCookie() {
-    const domain = getRootDomain();
-    const cookieName = config.uetConfig.domainHandling.msdCookieName;
-    const existingMsd = getCookie(cookieName);
-    
-    if (!existingMsd) {
-        // Generate a unique msd value (timestamp + random string)
-        const msdValue = `msd_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
-        const expires = new Date();
-        expires.setFullYear(expires.getFullYear() + 1);
-        
-        // Set cookie for root domain and all subdomains
-        document.cookie = `${cookieName}=${msdValue}; expires=${expires.toUTCString()}; path=/; domain=${domain}; SameSite=Lax; Secure`;
-    }
-}
 
-// Get the current msd cookie value
-function getMsdCookieValue() {
-    const cookieName = config.uetConfig.domainHandling.msdCookieName;
-    return getCookie(cookieName) || null;
-}
-
-// Extract root domain from hostname
-function getRootDomain() {
-    const hostname = window.location.hostname;
-    if (hostname === 'localhost' || hostname.match(/^\d+\.\d+\.\d+\.\d+$/)) {
-        return hostname; // Return as-is for localhost or IP addresses
-    }
-    
-    const parts = hostname.split('.');
-    if (parts.length <= 2) {
-        return hostname; // Already a root domain (example.com)
-    }
-    
-    // Handle subdomains by returning last two parts
-    return parts.slice(-2).join('.');
-}
 // Main initialization function
 function initializeCookieConsent(detectedCookies, language) {
     const consentGiven = getCookie('cookie_consent');
@@ -3652,17 +3602,13 @@ function updateConsentMode(consentData) {
     });
     
     // Update Microsoft UET consent if enabled
-if (config.uetConfig.enabled) {
+    if (config.uetConfig.enabled) {
         const uetConsentState = consentData.categories.advertising ? 'granted' : 'denied';
-        
-        // Ensure msd cookie is set
-        setMsdCookie();
-        
         window.uetq.push('consent', 'update', {
             'ad_storage': uetConsentState
         });
         
-        // Push UET consent event to dataLayer with msd and proper format
+        // Push UET consent event to dataLayer with the exact requested format
         window.dataLayer.push({
             'event': 'uet_consent_update',
             'uet_consent': {
@@ -3670,12 +3616,12 @@ if (config.uetConfig.enabled) {
                 'status': consentData.status,
                 'src': 'update',
                 'asc': uetConsentState === 'granted' ? 'G' : 'D',
-                'msd': getMsdCookieValue(), // Include msd value
                 'timestamp': new Date().toISOString()
             },
             'location_data': locationData
         });
     }
+    
     // Push general consent update to dataLayer with GCS signal
     window.dataLayer.push({
         'event': 'cookie_consent_update',
