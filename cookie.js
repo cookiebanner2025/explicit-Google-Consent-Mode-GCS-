@@ -67,17 +67,14 @@ const config = {
     },
     
     // Geo-targeting configuration
-// In the config object, add this to the geoConfig section:
-geoConfig: {
-    allowedCountries: [],
-    allowedRegions: [],
-    allowedCities: [],
-    blockedCountries: [],
-    blockedRegions: [],
-    blockedCities: [],
-    allowedContinents: ['Asia'], // Add this line
-    blockedContinents: []  // Add this line
-},
+    geoConfig: {
+        allowedCountries: [],
+        allowedRegions: [],
+        allowedCities: [],
+        blockedCountries: [],
+        blockedRegions: [],
+        blockedCities: []
+    },
     
     // Analytics configuration
     analytics: {
@@ -1642,21 +1639,8 @@ function isDomainAllowed() {
 }
 
 // Check geo-targeting restrictions
-// Replace the existing checkGeoTargeting function with this:
 function checkGeoTargeting(geoData) {
-    // Check blocked continents first
-    if (config.geoConfig.blockedContinents.length > 0 && 
-        config.geoConfig.blockedContinents.includes(geoData.continent)) {
-        return false;
-    }
-    
-    // Check allowed continents (if any restrictions are set)
-    if (config.geoConfig.allowedContinents.length > 0 && 
-        !config.geoConfig.allowedContinents.includes(geoData.continent)) {
-        return false;
-    }
-    
-    // Rest of the existing checks (countries, regions, cities)
+    // Check blocked locations first
     if (config.geoConfig.blockedCountries.length > 0 && 
         config.geoConfig.blockedCountries.includes(geoData.country)) {
         return false;
@@ -1672,6 +1656,7 @@ function checkGeoTargeting(geoData) {
         return false;
     }
     
+    // Check allowed locations (if any restrictions are set)
     if (config.geoConfig.allowedCountries.length > 0 && 
         !config.geoConfig.allowedCountries.includes(geoData.country)) {
         return false;
