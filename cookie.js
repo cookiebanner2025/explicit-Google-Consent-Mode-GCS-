@@ -1,32 +1,3 @@
-const EU_COUNTRIES = [
-    'AT', // Austria
-    'BE', // Belgium
-    'BG', // Bulgaria
-    'HR', // Croatia
-    'CY', // Cyprus
-    'CZ', // Czech Republic
-    'DK', // Denmark
-    'EE', // Estonia
-    'FI', // Finland
-    'FR', // France
-    'DE', // Germany
-    'GR', // Greece
-    'HU', // Hungary
-    'IE', // Ireland
-    'IT', // Italy
-    'LV', // Latvia
-    'LT', // Lithuania
-    'LU', // Luxembourg
-    'MT', // Malta
-    'NL', // Netherlands
-    'PL', // Poland
-    'PT', // Portugal
-    'RO', // Romania
-    'SK', // Slovakia
-    'SI', // Slovenia
-    'ES', // Spain
-    'SE', // Sweden
-];
 const config = {
     // Domain restriction
     allowedDomains: ['dev-rpractice.pantheonsite.io', 'assistenzaelettrodomestici-firenze.com'],
@@ -96,13 +67,13 @@ const config = {
     },
     
     // Geo-targeting configuration
-geoConfig: {
-    euOnly: true, // Only show in EU countries
-    blockedCountries: [], // Never show in these countries
-    blockedRegions: [], // Never show in these regions
-    blockedCities: [], // Never show in these cities
-    // Remove other unnecessary properties
-}
+     geoConfig: {
+        enabled: true, // Enable geo-targeting
+        euOnly: true,  // Only show in EU countries
+        fallbackToIP: true, // Fall back to IP detection if country code not available
+        useBrowserLanguage: false, // Don't rely on browser language for geo-detection
+        debug: false    // Set to true for testing to see detection results in console
+    },
     
     // Analytics configuration
     analytics: {
@@ -1667,14 +1638,8 @@ function isDomainAllowed() {
 }
 
 // Check geo-targeting restrictions
-// Replace the existing checkGeoTargeting function with this:
 function checkGeoTargeting(geoData) {
-    // If we don't have country data, allow by default (or deny if you prefer)
-    if (!geoData || !geoData.country || geoData.country === 'Unknown') {
-        return false; // Deny unknown locations in EU-only mode
-    }
-
-    // Check blocked locations first (highest priority)
+    // Check blocked locations first
     if (config.geoConfig.blockedCountries.length > 0 && 
         config.geoConfig.blockedCountries.includes(geoData.country)) {
         return false;
@@ -1689,16 +1654,7 @@ function checkGeoTargeting(geoData) {
         config.geoConfig.blockedCities.includes(geoData.city)) {
         return false;
     }
-
-    // Handle EU-only mode
-    if (config.geoConfig.euOnly) {
-        return EU_COUNTRIES.includes(geoData.country);
-    }
-
-    // If no restrictions, allow by default
-    return true;
-}
-
+    
     // Check allowed locations (if any restrictions are set)
     if (config.geoConfig.allowedCountries.length > 0 && 
         !config.geoConfig.allowedCountries.includes(geoData.country)) {
@@ -1715,7 +1671,6 @@ function checkGeoTargeting(geoData) {
         return false;
     }
     
-    // If no restrictions, allow by default
     return true;
 }
 
@@ -3106,14 +3061,139 @@ function shouldShowBanner() {
 
     return true;
 }
+// Enhanced location detection function
+async function fetchLocationData() {
+    // First check if we have a country code from the URL (useful for testing)
+    const urlParams = new URLSearchParams(window.location.search);
+    const testCountry = urlParams.get('testCountry');
+    
+    if (testCountry) {
+        locationData = {
+            country: testCountry.toUpperCase(),
+            continent: EU_COUNTRIES.includes(testCountry.toUpperCase()) ? 'EU' : 'Unknown',
+            ip: 'test-ip',
+            source: 'url-param'
+        };
+        sessionStorage.setItem('locationData', JSON.stringify(locationData));
+        return locationData;
+    }
 
+    // Check session storage first
+    const savedLocation = sessionStorage.getItem('locationData');
+    if (savedLocation) {
+        locationData = JSON.parse(savedLocation);
+        if (config.geoConfig.debug) console.log('Using saved location data:', locationData);
+        return locationData;
+    }
+
+    // Try to get country from browser (less reliable)
+    let browserCountry = null;
+    if (config.geoConfig.useBrowserLanguage) {
+        const language = navigator.language || navigator.userLanguage;
+        if (language && language.includes('-')) {
+            browserCountry = language.split('-')[1].toUpperCase();
+        }
+    }
+
+    // If we got a country from browser and it's in EU, use it
+    if (browserCountry && EU_COUNTRIES.includes(browserCountry)) {
+        locationData = {
+            country: browserCountry,
+            continent: 'EU',
+            ip: 'browser-detected',
+            source: 'browser-language'
+        };
+        sessionStorage.setItem('locationData', JSON.stringify(locationData));
+        if (config.geoConfig.debug) console.log('Detected EU country from browser:', browserCountry);
+        return locationData;
+    }
+
+    // Fall back to IP detection if enabled
+    if (config.geoConfig.fallbackToIP) {
+        try {
+            const response = await fetch('https://ipapi.co/json/');
+            if (!response.ok) throw new Error('Failed to fetch location');
+            
+            const data = await response.json();
+            
+            locationData = {
+                country: data.country || "Unknown",
+                country_name: data.country_name || "Unknown",
+                continent: data.continent_code || "Unknown",
+                ip: data.ip || "Unknown",
+                region: data.region || "Unknown",
+                city: data.city || "Unknown",
+                source: 'ipapi'
+            };
+            
+            sessionStorage.setItem('locationData', JSON.stringify(locationData));
+            if (config.geoConfig.debug) console.log('Detected location from IP:', locationData);
+            return locationData;
+        } catch (error) {
+            console.error('Error fetching location from IP:', error);
+            // Fallback to unknown location
+            locationData = {
+                country: "Unknown",
+                continent: "Unknown",
+                ip: "Unknown",
+                source: 'error-fallback'
+            };
+            return locationData;
+        }
+    }
+
+    // Final fallback
+    locationData = {
+        country: "Unknown",
+        continent: "Unknown",
+        ip: "Unknown",
+        source: 'final-fallback'
+    };
+    return locationData;
+}
+
+// Enhanced geo-targeting check
+function checkGeoTargeting(geoData) {
+    if (!config.geoConfig.enabled) {
+        if (config.geoConfig.debug) console.log('Geo-targeting disabled - showing banner');
+        return true;
+    }
+
+    if (!geoData || !geoData.country || geoData.country === 'Unknown') {
+        if (config.geoConfig.debug) console.log('Unknown country - decision based on config:', !config.geoConfig.euOnly);
+        return !config.geoConfig.euOnly;
+    }
+
+    // Check if country is in EU
+    const isEU = EU_COUNTRIES.includes(geoData.country);
+    
+    if (config.geoConfig.euOnly) {
+        if (config.geoConfig.debug) console.log('EU-only mode - country is EU:', isEU, 'Country:', geoData.country);
+        return isEU;
+    }
+
+    // If not EU-only mode, check other geo restrictions
+    if (config.geoConfig.allowedCountries.length > 0 && 
+        !config.geoConfig.allowedCountries.includes(geoData.country)) {
+        if (config.geoConfig.debug) console.log('Country not in allowed list:', geoData.country);
+        return false;
+    }
+    
+    if (config.geoConfig.blockedCountries.length > 0 && 
+        config.geoConfig.blockedCountries.includes(geoData.country)) {
+        if (config.geoConfig.debug) console.log('Country in blocked list:', geoData.country);
+        return false;
+    }
+
+    if (config.geoConfig.debug) console.log('No geo restrictions - showing banner');
+    return true;
+}
 // Main initialization function
 function initializeCookieConsent(detectedCookies, language) {
     const consentGiven = getCookie('cookie_consent');
     
-    // Check if banner should be shown based on geo-targeting and schedule
-    const geoAllowed = checkGeoTargeting(locationData);
-    const bannerShouldBeShown = geoAllowed && shouldShowBanner();
+    // Check if banner should be shown based on schedule
+    const bannerShouldBeShown = shouldShowBanner();
     
     if (!consentGiven && config.behavior.autoShow && bannerShouldBeShown) {
         setTimeout(() => {
@@ -3127,6 +3207,7 @@ function initializeCookieConsent(detectedCookies, language) {
             showFloatingButton();
         }
     }
+    
     // Explicitly apply the default language from config
     changeLanguage(config.languageConfig.defaultLanguage);
     
@@ -3723,13 +3804,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
 
-      // Check geo-targeting before proceeding
-    const geoAllowed = checkGeoTargeting(locationData);
-    if (!geoAllowed) {
-        console.log('Cookie consent banner not shown - geo-targeting restriction');
-        return;
-    }
-    
     // Load analytics data from storage
     if (config.analytics.enabled) {
         loadAnalyticsData();
@@ -3740,7 +3814,6 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Fetch location data asynchronously
     await fetchLocationData();
-    
 
     // Scan and categorize existing cookies
     const detectedCookies = scanAndCategorizeCookies();
